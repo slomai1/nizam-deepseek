@@ -13,10 +13,13 @@ set -euo pipefail
 
 DRY_RUN=0
 DO_BACKUP=1
+SKIP_CLAUDE_CHECK=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --no-backup) DO_BACKUP=0 ;;
+    # للاختبار الآلي (CI) حيث لا يكون Claude Code مثبّتاً
+    --skip-claude-check) SKIP_CLAUDE_CHECK=1 ;;
   esac
 done
 
@@ -52,6 +55,8 @@ step "١. فحص المتطلبات"
 
 if command -v claude >/dev/null 2>&1; then
   ok "Claude Code موجود"
+elif [ "$SKIP_CLAUDE_CHECK" = "1" ]; then
+  warn "تخطّي فحص Claude Code (--skip-claude-check)"
 else
   fail "Claude Code غير موجود في PATH — ثبّته أولاً: npm i -g @anthropic-ai/claude-code"
   exit 1

@@ -1,0 +1,79 @@
+name: فحص
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # node:sqlite يتطلب Node ≥ 22.5 — نفس قيد التركيب
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: التحقق من دعم node:sqlite
+        run: node -e "require('node:sqlite'); console.log('node:sqlite متاح — ' + process.version)"
+
+      - name: صحة بنية ملفات JavaScript
+        run: |
+          fail=0
+          for f in $(find . -name '*.js' -not -path './.git/*'); do
+            if node --check "$f" 2>/dev/null; then
+              echo "✓ $f"
+            else
+              echo "✗ $f"; node --check "$f"; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: صحة ملفات JSON
+        run: |
+          fail=0
+          for f in $(find . -name '*.json' -not -path './.git/*'); do
+            if node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" 2>/dev/null; then
+              echo "✓ $f"
+            else
+              echo "✗ $f"; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: صحة مخطط قاعدة الذاكرة
+        run: |
+          node -e "
+          const {DatabaseSync}=require('node:sqlite');
+          const db=new DatabaseSync(':memory:');
+          db.exec(require('fs').readFileSync('templates/memory/schema.sql','utf8'));
+          const t=db.prepare(\"SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\").get().c;
+          const v=db.prepare(\"SELECT COUNT(*) c FROM sqlite_master WHERE type='view'\").get().c;
+          if (t!==6||v!==6) { console.error('المخطط غير مكتمل: '+t+' جداول, '+v+' views'); process.exit(1); }
+          console.log('المخطط سليم: '+t+' جداول + '+v+' views');
+          db.close();
+          "
+
+      - name: اختبار الـ hooks
+        run: bash tools/test-hooks.sh
+
+      - name: اختبار دمج الإعدادات
+        run: bash tools/test-merge.sh
+
+      - name: بوابة ما قبل النشر (أسرار وبيانات شخصية)
+        run: bash tools/pre-publish-check.sh
+
+      - name: تركيب تجريبي في بيئة معزولة
+        env:
+          CLAUDE_CONFIG_DIR: /tmp/nizam-ci
+        run: |
+          bash install/install.sh --no-backup --skip-claude-check
+          test -f "$CLAUDE_CONFIG_DIR/settings.json"     || { echo "settings.json مفقود"; exit 1; }
+          test -f "$CLAUDE_CONFIG_DIR/CLAUDE.md"          || { echo "CLAUDE.md مفقود"; exit 1; }
+          test -f "$CLAUDE_CONFIG_DIR/data/deepseek.db"   || { echo "قاعدة الذاكرة مفقودة"; exit 1; }
+          test "$(ls "$CLAUDE_CONFIG_DIR/hooks"/*.sh | wc -l)" = "5" || { echo "عدد الـ hooks غير متوقع"; exit 1; }
+          echo "التركيب التجريبي نجح"
