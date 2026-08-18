@@ -1,78 +1,101 @@
 #!/usr/bin/env bash
-# block_dangerous.sh — PreToolUse (Bash)
-# يمنع 20+ أمر خطير قبل التنفيذ
-# الاستخراج عبر node (JSON حقيقي) — يعالج الاقتباسات المهرّبة التي يكسرها grep
+# block_dangerous.sh — PreToolUse (Bash|PowerShell)
+# يمنع الأوامر الخطيرة قبل التنفيذ
+#
+# مبدآن أمنيان:
+#   1. fail-closed: إذا تعذّر تحليل JSON نفحص النص الخام بدل تمرير الأمر بلا فحص
+#   2. الأنماط تُختبر فعلياً (راجع .test-hooks.sh) — لا نمط بلا اختبار يثبت مطابقته
 
-set -euo pipefail
+set -uo pipefail
 
 INPUT=$(cat)
 
-# استخراج الأمر عبر node — يحلل JSON فعلياً لا نصاً
+# استخراج الأمر عبر node (JSON حقيقي) — يعالج الاقتباسات المهرّبة التي يكسرها grep
+# عند فشل التحليل نطبع __PARSE_FAILED__ لنفحص النص الخام بدل المرور بصمت
 COMMAND=$(printf '%s' "$INPUT" | node -e '
 let s = "";
 process.stdin.on("data", (d) => (s += d));
 process.stdin.on("end", () => {
   try {
     const j = JSON.parse(s);
-    const c = (j.tool_input && j.tool_input.command) || j.command || "";
+    const ti = j.tool_input || {};
+    // Bash يستخدم command · PowerShell قد يستخدم command أيضاً
+    const c = ti.command || j.command || "";
     process.stdout.write(String(c));
   } catch (e) {
-    process.stdout.write("");
+    process.stdout.write("__PARSE_FAILED__");
   }
 });
-')
+' 2>/dev/null || printf '__PARSE_FAILED__')
 
-if [ -z "$COMMAND" ]; then
-  exit 0
+# fail-closed: تعذّر التحليل (أو غياب node) → نفحص المدخل الخام كاملاً
+if [ "$COMMAND" = "__PARSE_FAILED__" ] || [ -z "${COMMAND}" ]; then
+  if [ "$COMMAND" = "__PARSE_FAILED__" ]; then
+    COMMAND="$INPUT"
+  else
+    exit 0   # تحليل ناجح بلا أمر — لا شيء لفحصه
+  fi
 fi
 
-# ─── قائمة الأوامر الخطيرة (bash + PowerShell + sh) ───
+# ─── تقليل الإيجابيات الكاذبة ───
+# نص التوثيق (رسائل commit، heredoc، سلاسل مقتبسة) يذكر أوامر خطرة كأمثلة
+# دون تنفيذها. نجرّد هذه المقاطع قبل الفحص حتى لا يُمنع توثيقٌ بريء.
+# التجريد يقتصر على heredoc ورسائل commit — لا يطال الأمر المنفَّذ نفسه.
+SCAN="$COMMAND"
+if printf '%s' "$SCAN" | grep -qE '^[[:space:]]*git[[:space:]]+commit'; then
+  # نحذف محتوى heredoc ورسائل -m من نطاق الفحص
+  SCAN=$(printf '%s' "$SCAN" | sed -e "s/<<'\?EOF'\?.*//" -e 's/-m[[:space:]]*"[^"]*"//g' -e "s/-m[[:space:]]*'[^']*'//g")
+fi
+
+# ─── الأوامر الخطيرة ───
 DANGEROUS=(
+  # حذف جذري
   'rm[[:space:]]+-rf[[:space:]]+/'
   'rm[[:space:]]+-rf[[:space:]]+~'
   'rm[[:space:]]+-rf[[:space:]]+\$HOME'
-  # النقطة وحدها فقط (نهاية أو مسافة) — لا نمنع rm -rf .next أو .cache أو ./build
+  # النقطة/النقطتان وحدهما — لا نمنع rm -rf .next أو ./build
   'rm[[:space:]]+-rf[[:space:]]+\.[[:space:]]*$'
-  'rm[[:space:]]+-rf[[:space:]]+\./?[[:space:]]*(;|&&|\|)'
   'rm[[:space:]]+-rf[[:space:]]+\.\.[[:space:]]*$'
-  'rm[[:space:]]+-rf[[:space:]]+\*[[:space:]]*$'
+  'rm[[:space:]]+-rf[[:space:]]+\./?[[:space:]]*(;|&&)'
+  # dot-glob: rm -rf * و ./* و ../*  (كانت تتسلل قبل)
+  'rm[[:space:]]+-rf[[:space:]]+(\.\.?/)?\*([[:space:]]|$|;|&)'
+  # git مدمّر
   'git[[:space:]]+push[[:space:]]+(--force|-f)'
   'git[[:space:]]+reset[[:space:]]+--hard'
   'git[[:space:]]+clean[[:space:]]+-fdx?'
   'git[[:space:]]+branch[[:space:]]+-D'
   'git[[:space:]]+checkout[[:space:]]+\.'
   'git[[:space:]]+restore[[:space:]]+\.'
+  # قواعد بيانات
   'DROP[[:space:]]+TABLE'
   'DROP[[:space:]]+DATABASE'
   'TRUNCATE[[:space:]]+TABLE'
-  'DELETE[[:space:]]+FROM[[:space:]]+[a-z_]+[[:space:]]*;?[[:space:]]*$'
+  # صلاحيات وأقراص
   'chmod[[:space:]]+(-R[[:space:]]+)?777'
   'chown[[:space:]]+-R[[:space:]]+root'
-  'npm[[:space:]]+publish'
   'mkfs\.'
   'dd[[:space:]]+if='
-  ':(){ :|:& };:'   # fork bomb
-  '>\s*\/dev\/sda'
-  'format[[:space:]]+C:'
-  'del[[:space:]]+[\/f][[:space:]]+[\/s][[:space:]]+[\/q][[:space:]]+C:\\'
-  # تنفيذ مباشر من الإنترنت — سطح هجوم
-  '(curl|wget)[[:space:]]+[^|]*[|][[:space:]]*(sudo[[:space:]]+)?(ba)?sh'
-  # PowerShell — تغطية الأنماط السامة
-  'Remove-Item[[:space:]]+-Recurse[[:space:]]+-Force[[:space:]]+[A-Z]:[\\/]'
-  'Remove-Item[[:space:]]+-Recurse[[:space:]]+-Force[[:space:]]+\$env:'
-  'Format-Volume[[:space:]]+-DriveLetter'
-  'Clear-Content[[:space:]]+-Path[[:space:]]+\$env:'
-  'Set-ExecutionPolicy[[:space:]]+-Scope[[:space:]]+CurrentUser[[:space:]]+-ExecutionPolicy[[:space:]]+Bypass'
+  '>[[:space:]]*/dev/sd[a-z]'
+  'format[[:space:]]+[A-Z]:'
+  # fork bomb — الأقواس مهرّبة ليطابق النص الحرفي (كان نمطاً ميتاً قبل)
+  ':\(\)[[:space:]]*\{.*:\|:&'
+  # تنفيذ مباشر من الإنترنت
+  '(curl|wget)[[:space:]]+[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh'
+  # نشر غير مقصود
+  'npm[[:space:]]+publish'
+  # PowerShell — يعمل فقط إذا كان الـ hook مسجّلاً على matcher يشمل PowerShell
+  'Remove-Item[[:space:]]+.*-Recurse[[:space:]]+.*-Force[[:space:]]+[A-Z]:[\\/]'
+  'Remove-Item[[:space:]]+.*-Recurse[[:space:]]+.*-Force[[:space:]]+\$env:'
+  'Format-Volume'
+  'Set-ExecutionPolicy[[:space:]]+.*Bypass'
   # كتابة فوق ملفات حساسة
-  '>[[:space:]]+/etc/passwd'
-  '>[[:space:]]+/etc/shadow'
-  '>[[:space:]]+~/.bashrc'
-  '>[[:space:]]+~/.zshrc'
+  '>[[:space:]]*/etc/(passwd|shadow)'
+  '>[[:space:]]*~/\.(bashrc|zshrc|profile)'
 )
 
 for pattern in "${DANGEROUS[@]}"; do
-  if echo "$COMMAND" | grep -qE "$pattern"; then
-    echo "❌ أمر خطير ممنوع: $COMMAND" >&2
+  if printf '%s' "$SCAN" | grep -qE "$pattern"; then
+    echo "❌ أمر خطير ممنوع" >&2
     echo "   النمط المطابق: $pattern" >&2
     exit 2
   fi

@@ -48,9 +48,11 @@ function merge(obj, base) {
       (v.deny || []).forEach((d) => denySet.add(d));
       out.permissions = {
         ...base.permissions,
-        allow: base.permissions.allow || v.allow || [],
+        // allow و defaultMode لا يُشتقّان من القالب أبداً عند وجود إعدادات للمستخدم.
+        // غياب allow يعني «لا صلاحيات ممنوحة» لا «خذ صلاحيات القالب»
+        allow: base.permissions.allow ?? [],
         deny: [...denySet],
-        defaultMode: base.permissions.defaultMode || v.defaultMode,
+        defaultMode: base.permissions.defaultMode ?? "default",
       };
       continue;
     }
