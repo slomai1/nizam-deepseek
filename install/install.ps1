@@ -13,7 +13,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$RepoDir = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$RepoDir = Split-Path $PSScriptRoot -Parent
 $ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME ".claude" }
 $CoreDir = Join-Path $RepoDir "core"
 $TplDir = Join-Path $RepoDir "templates"
@@ -42,11 +42,12 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
 }
 
 if (Get-Command node -ErrorAction SilentlyContinue) {
-  $nodeMajor = [int]((node -p "process.versions.node.split('.')[0]"))
-  if ($nodeMajor -ge 22) {
-    Write-Ok "Node موجود (v$(node -v))"
+  # node:sqlite أُضيف في Node 22.5 — نفحص الوحدة فعلياً لا رقم الإصدار
+  node -e "require('node:sqlite')" 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    Write-Ok "Node موجود (v$(node -v)) — مع دعم node:sqlite"
   } else {
-    Write-Fail "Node يجب أن يكون ≥ 22.5 ليعمل node:sqlite — لديك v$(node -v)"
+    Write-Fail "Node ≥ 22.5 مطلوب ليعمل node:sqlite — لديك v$(node -v)"
     exit 1
   }
 } else {

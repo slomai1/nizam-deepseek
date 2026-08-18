@@ -19,12 +19,12 @@ echo "📂 المجلدات الدليلية:" && \
 (for d in src app pages components plugins themes node_modules vendor .git; do if [ -d "$d" ]; then echo "  📁 $d"; fi; done) && \
 echo "" && \
 echo "📊 إحصائيات سريعة:" && \
-echo "  TypeScript: $(find . -name '*.ts' -o -name '*.tsx' 2>/dev/null | head -1 | wc -l) ملفات" && \
-echo "  JavaScript: $(find . -name '*.js' -o -name '*.jsx' 2>/dev/null | head -1 | wc -l) ملفات" && \
-echo "  PHP: $(find . -name '*.php' 2>/dev/null | head -1 | wc -l) ملفات" && \
-echo "  Python: $(find . -name '*.py' 2>/dev/null | head -1 | wc -l) ملفات" && \
-echo "  Dart: $(find . -name '*.dart' 2>/dev/null | head -1 | wc -l) ملفات" && \
-echo "  CSS: $(find . -name '*.css' -o -name '*.scss' 2>/dev/null | head -1 | wc -l) ملفات"
+echo "  TypeScript: $(find . -name '*.ts' -o -name '*.tsx' 2>/dev/null | wc -l) ملفات" && \
+echo "  JavaScript: $(find . -name '*.js' -o -name '*.jsx' 2>/dev/null | wc -l) ملفات" && \
+echo "  PHP: $(find . -name '*.php' 2>/dev/null | wc -l) ملفات" && \
+echo "  Python: $(find . -name '*.py' 2>/dev/null | wc -l) ملفات" && \
+echo "  Dart: $(find . -name '*.dart' 2>/dev/null | wc -l) ملفات" && \
+echo "  CSS: $(find . -name '*.css' -o -name '*.scss' 2>/dev/null | wc -l) ملفات"
 ```
 
 ## الخطوة 2: الأدوات المناسبة حسب نوع المشروع

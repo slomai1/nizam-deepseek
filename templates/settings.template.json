@@ -11,34 +11,41 @@
   },
   "permissions": {
     "allow": [
-      "Bash(*)",
-      "PowerShell(*)",
       "Read(*)",
-      "Write(*)",
-      "Edit(*)",
       "Glob(*)",
       "Grep(*)",
+      "Write(*)",
+      "Edit(*)",
       "WebFetch(*)",
       "WebSearch(*)",
       "Skill(*)",
       "Agent(*)",
       "Task(*)",
-      "NotebookEdit(*)",
       "LSP(*)",
       "mcp__plugin_context7_context7__*",
       "mcp__plugin_supabase_supabase__*",
       "mcp__plugin_last30days_last30days__*",
-      "mcp__plugin_github_github__*",
-      "mcp__(*)"
+      "mcp__plugin_github_github__*"
     ],
     "deny": [
       "Bash(rm -rf /)",
       "Bash(rm -rf ~)",
+      "Bash(rm -rf .)",
       "Bash(git push --force)",
+      "Bash(git reset --hard)",
+      "Bash(git clean -fdx)",
+      "Bash(curl * | bash)",
+      "Bash(curl * | sudo bash)",
+      "Bash(wget * | bash)",
       "Bash(format C:*)",
+      "Bash(del /f /s /q C:*)",
       "Bash(shutdown*)",
+      "Bash(chmod 777*)",
+      "Bash(chown -R root*)",
       "Bash(:(){ :|:& };:)",
-      "Bash(DROP TABLE *)"
+      "Bash(DROP TABLE *)",
+      "PowerShell(Remove-Item -Recurse -Force C:\\)",
+      "PowerShell(Format-Volume *)"
     ],
     "defaultMode": "default"
   },
@@ -197,6 +204,5 @@
   "autoDreamEnabled": true,
   "skipDangerousModePermissionPrompt": false,
   "skipWorkflowUsageWarning": true,
-  "theme": "dark",
-  "skipAutoPermissionPrompt": true
+  "theme": "dark"
 }

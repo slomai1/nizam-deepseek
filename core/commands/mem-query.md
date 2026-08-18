@@ -74,29 +74,40 @@ db.close();
    └─ file3.md — [الوصف] — صلة: [لماذا]
 ```
 
-### إذا كان `sql <استعلام>` — استعلام مباشر
+### إذا كان `sql <رقم>` — استعلام جاهز آمن (قراءة فقط)
 
-شغّل الاستعلام مباشرة على SQLite:
+نفّذ الاستعلام الجاهز المقابل من القائمة الثابتة. **لا يُحقن أي SQL حر** — الرقم فقط يُقبل، والاستعلامات بيضاء ثابتة، والقاعدة تُفتح للقراءة فقط:
 
 ```bash
 node -e "
 const {DatabaseSync}=require('node:sqlite');
 const h=require('os').homedir();
-const db=new DatabaseSync(h+'/.claude/data/deepseek.db');
+const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});
 try {
-  const r=db.prepare('$ARGUMENTS').all();
-  console.log(JSON.stringify(r,null,2));
+  // نستخرج الرقم فقط من الإدخال (مثل 'sql 3') — لا يُقبل SQL حر إطلاقاً
+  const q = Number(String('$ARGUMENTS').replace(/[^0-9]/g, '')) || 0;
+  const QUERIES = {
+    1: \"SELECT tool_name, COUNT(*) c, SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC\",
+    2: 'SELECT * FROM v_frequent_hallucinations',
+    3: 'SELECT * FROM v_recent_memories',
+    4: 'SELECT * FROM v_session_stats',
+    5: 'SELECT name, description, type, created_at FROM memories ORDER BY created_at DESC'
+  };
+  const sql = QUERIES[q];
+  if (!sql) { console.log('ERROR: رقم استعلام غير صالح — استخدم 1 إلى 5'); process.exit(0); }
+  const r = db.prepare(sql).all();
+  console.log(JSON.stringify(r, null, 2));
 } catch(e) { console.log('ERROR: '+e.message); }
 db.close();
 "
 ```
 
-**استعلامات جاهزة مفيدة:**
+**الاستعلامات الجاهزة:**
 
 ```
-/mem-query sql SELECT tool_name, COUNT(*) c, SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC
-/mem-query sql SELECT * FROM v_frequent_hallucinations
-/mem-query sql SELECT * FROM v_recent_memories
-/mem-query sql SELECT * FROM v_session_stats
-/mem-query sql SELECT name, description, type, created_at FROM memories ORDER BY created_at DESC
+/mem-query sql 1   أكثر الأدوات استخداماً
+/mem-query sql 2   الهلوسات المتكررة
+/mem-query sql 3   آخر الذكريات
+/mem-query sql 4   إحصائيات الجلسات
+/mem-query sql 5   الذكريات مرتبة بالتاريخ
 ```

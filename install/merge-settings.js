@@ -40,6 +40,10 @@ const existing = fs.existsSync(targetPath)
 function merge(obj, base) {
   const out = { ...base };
   for (const [k, v] of Object.entries(obj)) {
+    // لا نوسّع صلاحيات مستخدم قائم أبداً — قائمته تبقى كما هي
+    if (k === "permissions" && base.permissions) {
+      continue;
+    }
     if (v && typeof v === "object" && !Array.isArray(v)) {
       out[k] = merge(v, base[k] && typeof base[k] === "object" ? base[k] : {});
     } else if (Array.isArray(v)) {

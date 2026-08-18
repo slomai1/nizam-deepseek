@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # loop_prevention.sh — PostToolUse (Bash)
-# يعد الأخطاء ويمنع التكرار الأبدي
+# يعدّ الأخطاء الجادة المتتالية ويمنع التكرار الأبدي
+# لا يعدّ كل stderr — git/npm تكتب تحذيرات stderr حتى عند النجاح
 
 set -euo pipefail
 
@@ -9,16 +10,28 @@ MAX_ERRORS=10
 
 INPUT=$(cat)
 
-# استخراج stderr من مخرجات الأداة
-STDERR=$(echo "$INPUT" | grep -o '"stderr"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"stderr"[[:space:]]*:[[:space:]]*"//;s/"$//' || true)
+# استخراج stderr عبر node (JSON حقيقي)
+STDERR=$(printf '%s' "$INPUT" | node -e '
+let s = "";
+process.stdin.on("data", (d) => (s += d));
+process.stdin.on("end", () => {
+  try {
+    const j = JSON.parse(s);
+    const e = (j.tool_response && j.tool_response.stderr) || j.stderr || "";
+    process.stdout.write(String(e));
+  } catch (err) {
+    process.stdout.write("");
+  }
+});
+')
 
-# إذا ما فيه stderr — أعِد العداد للصفر واخرج
-if [ -z "$STDERR" ] || [ "$STDERR" = "" ]; then
+# أنماط الخطأ الجادة فقط — تحذيرات git/npm لا تُحتسب
+if ! printf '%s' "$STDERR" | grep -qE '(error|fatal|traceback|command failed|not found|no such file|permission denied|EACCES|ENOENT|Segmentation fault|Killed)'; then
   echo "0" > "$COUNTER_FILE"
   exit 0
 fi
 
-# فيه خطأ — زِد العداد
+# خطأ جاد — زِد العداد
 if [ -f "$COUNTER_FILE" ]; then
   COUNT=$(cat "$COUNTER_FILE")
 else

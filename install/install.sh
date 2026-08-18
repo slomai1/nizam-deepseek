@@ -58,11 +58,11 @@ else
 fi
 
 if command -v node >/dev/null 2>&1; then
-  NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
-  if [ "$NODE_MAJOR" -ge 22 ]; then
-    ok "Node موجود (v$(node -v))"
+  # node:sqlite أُضيف في Node 22.5 — نفحص الوحدة فعلياً لا رقم الإصدار
+  if node -e "require('node:sqlite')" 2>/dev/null; then
+    ok "Node موجود (v$(node -v)) — مع دعم node:sqlite"
   else
-    fail "Node يجب أن يكون ≥ 22.5 ليعمل node:sqlite — لديك v$(node -v)"
+    fail "Node ≥ 22.5 مطلوب ليعمل node:sqlite — لديك v$(node -v)"
     exit 1
   fi
 else
@@ -114,10 +114,11 @@ else
 fi
 ok "نُسخ core/ → ~/.claude (دمج)"
 
-# على يونكس: اجعل الـ hooks قابلة للتنفيذ
-if [ "$(uname -s)" != "MINGW"* ] && [ "$(uname -s)" != "MSYS"* ]; then
-  chmod +x "$CLAUDE_DIR"/hooks/*.sh 2>/dev/null || true
-fi
+# على يونكس: اجعل الـ hooks قابلة للتنفيذ (نتجاوز Git Bash على Windows)
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) : ;;
+  *) chmod +x "$CLAUDE_DIR"/hooks/*.sh 2>/dev/null || true ;;
+esac
 
 # ------------------------------------------------------------
 # ٤. توليد/دمج settings.json

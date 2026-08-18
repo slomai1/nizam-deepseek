@@ -1,50 +1,72 @@
 #!/usr/bin/env bash
 # block_dangerous.sh — PreToolUse (Bash)
 # يمنع 20+ أمر خطير قبل التنفيذ
+# الاستخراج عبر node (JSON حقيقي) — يعالج الاقتباسات المهرّبة التي يكسرها grep
 
 set -euo pipefail
 
-# قراءة JSON المدخل من stdin
 INPUT=$(cat)
 
-# استخراج الأمر من JSON
-COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//;s/"$//')
+# استخراج الأمر عبر node — يحلل JSON فعلياً لا نصاً
+COMMAND=$(printf '%s' "$INPUT" | node -e '
+let s = "";
+process.stdin.on("data", (d) => (s += d));
+process.stdin.on("end", () => {
+  try {
+    const j = JSON.parse(s);
+    const c = (j.tool_input && j.tool_input.command) || j.command || "";
+    process.stdout.write(String(c));
+  } catch (e) {
+    process.stdout.write("");
+  }
+});
+')
 
 if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
-# ─── قائمة الأوامر الخطيرة ───
+# ─── قائمة الأوامر الخطيرة (bash + PowerShell + sh) ───
 DANGEROUS=(
   'rm[[:space:]]+-rf[[:space:]]+/'
   'rm[[:space:]]+-rf[[:space:]]+~'
   'rm[[:space:]]+-rf[[:space:]]+\$HOME'
-  'rm[[:space:]]+-rf[[:space:]]+\.\./\.\.[[:space:]]'
-  'git[[:space:]]+push[[:space:]]+--force[[:space:]]+origin[[:space:]]+main'
-  'git[[:space:]]+push[[:space:]]+--force[[:space:]]+origin[[:space:]]+master'
-  'git[[:space:]]+push[[:space:]]+-f[[:space:]]+origin[[:space:]]+main'
-  'git[[:space:]]+push[[:space:]]+-f[[:space:]]+origin[[:space:]]+master'
+  'rm[[:space:]]+-rf[[:space:]]+\.'
+  'rm[[:space:]]+-rf[[:space:]]+\.\.'
+  'rm[[:space:]]+-rf[[:space:]]+\./\.'
+  'rm[[:space:]]+-rf[[:space:]]+\.\./\.\.'
+  'git[[:space:]]+push[[:space:]]+(--force|-f)'
+  'git[[:space:]]+reset[[:space:]]+--hard'
+  'git[[:space:]]+clean[[:space:]]+-fdx?'
+  'git[[:space:]]+branch[[:space:]]+-D'
+  'git[[:space:]]+checkout[[:space:]]+\.'
+  'git[[:space:]]+restore[[:space:]]+\.'
   'DROP[[:space:]]+TABLE'
   'DROP[[:space:]]+DATABASE'
   'TRUNCATE[[:space:]]+TABLE'
-  'chmod[[:space:]]+777'
-  'chmod[[:space:]]+-R[[:space:]]+777'
+  'DELETE[[:space:]]+FROM[[:space:]]+[a-z_]+[[:space:]]*;?[[:space:]]*$'
+  'chmod[[:space:]]+(-R[[:space:]]+)?777'
   'chown[[:space:]]+-R[[:space:]]+root'
   'npm[[:space:]]+publish'
   'mkfs\.'
   'dd[[:space:]]+if='
   ':(){ :|:& };:'   # fork bomb
-  '>\/dev\/sda'
+  '>\s*\/dev\/sda'
   'format[[:space:]]+C:'
-  'del[[:space:]]+\/f[[:space:]]+\/s[[:space:]]+\/q[[:space:]]+C:\\'
-  # ─── git — حماية أوسع (مكمّلة من git-guardrails) ───
-  'git[[:space:]]+push[[:space:]]+--force'
-  'git[[:space:]]+push[[:space:]]+-f'
-  'git[[:space:]]+reset[[:space:]]+--hard'
-  'git[[:space:]]+clean[[:space:]]+-f'
-  'git[[:space:]]+branch[[:space:]]+-D'
-  'git[[:space:]]+checkout[[:space:]]+\.'
-  'git[[:space:]]+restore[[:space:]]+\.'
+  'del[[:space:]]+[\/f][[:space:]]+[\/s][[:space:]]+[\/q][[:space:]]+C:\\'
+  # تنفيذ مباشر من الإنترنت — سطح هجوم
+  '(curl|wget)[[:space:]]+[^|]*[|][[:space:]]*(sudo[[:space:]]+)?(ba)?sh'
+  # PowerShell — تغطية الأنماط السامة
+  'Remove-Item[[:space:]]+-Recurse[[:space:]]+-Force[[:space:]]+[A-Z]:[\\/]'
+  'Remove-Item[[:space:]]+-Recurse[[:space:]]+-Force[[:space:]]+\$env:'
+  'Format-Volume[[:space:]]+-DriveLetter'
+  'Clear-Content[[:space:]]+-Path[[:space:]]+\$env:'
+  'Set-ExecutionPolicy[[:space:]]+-Scope[[:space:]]+CurrentUser[[:space:]]+-ExecutionPolicy[[:space:]]+Bypass'
+  # كتابة فوق ملفات حساسة
+  '>[[:space:]]+/etc/passwd'
+  '>[[:space:]]+/etc/shadow'
+  '>[[:space:]]+~/.bashrc'
+  '>[[:space:]]+~/.zshrc'
 )
 
 for pattern in "${DANGEROUS[@]}"; do

@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 # block_secrets.sh — PreToolUse (Bash)
 # يكشف API keys في الأوامر ويمنعها
+# الاستخراج عبر node (JSON حقيقي) — يعالج الاقتباسات المهرّبة التي يكسرها grep
 
 set -euo pipefail
 
 INPUT=$(cat)
-COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//;s/"$//')
+
+COMMAND=$(printf '%s' "$INPUT" | node -e '
+let s = "";
+process.stdin.on("data", (d) => (s += d));
+process.stdin.on("end", () => {
+  try {
+    const j = JSON.parse(s);
+    const c = (j.tool_input && j.tool_input.command) || j.command || "";
+    process.stdout.write(String(c));
+  } catch (e) {
+    process.stdout.write("");
+  }
+});
+')
 
 if [ -z "$COMMAND" ]; then
   exit 0
@@ -13,7 +27,7 @@ fi
 
 # ─── أنماط المفاتيح والأسرار ───
 SECRETS=(
-  'sk-[a-zA-Z0-9]{20,}'           # Anthropic / OpenAI keys
+  'sk-[a-zA-Z0-9]{16,}'           # Anthropic / OpenAI / DeepSeek keys (تغطية أوسع)
   'sk-ant-[a-zA-Z0-9_-]{20,}'     # Anthropic Admin keys
   'AIza[0-9A-Za-z_-]{35}'         # Google API keys
   'ghp_[a-zA-Z0-9]{36}'           # GitHub Personal Access Token (classic)

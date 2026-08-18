@@ -6,11 +6,24 @@ set -euo pipefail
 
 INPUT=$(cat)
 
-# اسم الأداة
-TOOL=$(echo "$INPUT" | grep -o '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"tool_name"[[:space:]]*:[[:space:]]*"//;s/"$//')
-
-# مسار الملف
-FILE=$(echo "$INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//;s/"$//')
+# استخراج عبر node (JSON حقيقي — يعالج الاقتباسات المهرّبة التي يكسرها grep)
+# كل حقل في سطر منفصل لئلا تنكسر المسارات ذات المسافات
+OUT=$(printf '%s' "$INPUT" | node -e '
+let s = "";
+process.stdin.on("data", (d) => (s += d));
+process.stdin.on("end", () => {
+  try {
+    const j = JSON.parse(s);
+    const tool = j.tool_name || "";
+    const f = (j.tool_input && j.tool_input.file_path) || j.file_path || "";
+    process.stdout.write(tool + "\n" + f);
+  } catch (e) {
+    process.stdout.write("\n");
+  }
+});
+')
+TOOL=$(printf '%s\n' "$OUT" | sed -n '1p')
+FILE=$(printf '%s\n' "$OUT" | sed -n '2p')
 
 if [ -z "$FILE" ]; then
   exit 0
