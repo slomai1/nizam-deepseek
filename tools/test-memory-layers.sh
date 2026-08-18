@@ -86,6 +86,21 @@ echo "=== مزامنة من داخل المشروع ب ==="
 [ "$(q "SELECT COUNT(*) c FROM memories WHERE project IS NULL")" = "2" ] \
   && ok "الطبقة العامة سليمة (تفضيل + سجل هلوسات)" || bad "الطبقة العامة" "العدد غير متوقع"
 
+echo ""
+echo "=== سجل قديم بقيمة project موروثة يُصحَّح عند المزامنة ==="
+# الخلل الواقعي: سجل سابق بقيمة project مختلفة كان يبقى بلا تحديث
+# لأن UPDATE اشترط تطابق project — فتظهر الذاكرة في طبقة وهي مسجَّلة في أخرى
+node -e "
+const {DatabaseSync}=require('node:sqlite');
+const db=new DatabaseSync(process.argv[1]);
+db.prepare(\"UPDATE memories SET project='legacy-value' WHERE name='pref-global'\").run();
+db.close();" "$DB"
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='pref-global' AND project='legacy-value'")" = "1" ] \
+  && ok "هُيّئ سجل بقيمة موروثة" || bad "التهيئة"
+( cd "$PROJ_A" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" >/dev/null 2>&1 )
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='pref-global' AND project IS NULL")" = "1" ] \
+  && ok "المزامنة صحّحت القيمة الموروثة إلى NULL" || bad "التصحيح" "السجل بقي بقيمة قديمة"
+
 rm -rf "$SANDBOX"
 echo ""
 echo "========================================"

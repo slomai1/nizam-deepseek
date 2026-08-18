@@ -134,9 +134,12 @@ function syncLayer(dir, projectValue, label) {
     db.prepare(
       "INSERT OR IGNORE INTO memories(name,description,type,content,project) VALUES(?,?,?,?,?)",
     ).run(name, desc, type, content, projectValue);
+    // `name` فريد في المخطط، فالمطابقة عليه وحده. ضبط `project` هنا ضروري:
+    // اشتراط تطابقه في WHERE يترك السجلات القديمة بقيم project موروثة بلا تحديث،
+    // فتظهر ذاكرة في طبقة وهي مسجَّلة في أخرى.
     db.prepare(
-      "UPDATE memories SET updated_at=datetime('now'),content=?,description=?,type=? WHERE name=? AND project IS ?",
-    ).run(content, desc, type, name, projectValue);
+      "UPDATE memories SET updated_at=datetime('now'),content=?,description=?,type=?,project=? WHERE name=?",
+    ).run(content, desc, type, projectValue, name);
     names.add(name);
   }
   console.log("✅ " + label + ": " + names.size + " ملف");
