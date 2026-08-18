@@ -76,38 +76,36 @@ db.close();
 
 ### إذا كان `sql <رقم>` — استعلام جاهز آمن (قراءة فقط)
 
-نفّذ الاستعلام الجاهز المقابل من القائمة الثابتة. **لا يُحقن أي SQL حر** — الرقم فقط يُقبل، والاستعلامات بيضاء ثابتة، والقاعدة تُفتح للقراءة فقط:
+> **قاعدة أمنية إلزامية:** لا تُدرج `$ARGUMENTS` داخل أي كود تُنفّذه — لا في SQL ولا في JavaScript. اقرأ الرقم الذي طلبه المستخدم، ثم **انسخ الكتلة المقابلة حرفياً** ونفّذها كما هي. أي إدخال غير رقم من ١ إلى ٥ يُرفض بلا تنفيذ.
+
+**١ — أكثر الأدوات استخداماً**
 
 ```bash
-node -e "
-const {DatabaseSync}=require('node:sqlite');
-const h=require('os').homedir();
-const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});
-try {
-  // نستخرج الرقم فقط من الإدخال (مثل 'sql 3') — لا يُقبل SQL حر إطلاقاً
-  const q = Number(String('$ARGUMENTS').replace(/[^0-9]/g, '')) || 0;
-  const QUERIES = {
-    1: \"SELECT tool_name, COUNT(*) c, SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC\",
-    2: 'SELECT * FROM v_frequent_hallucinations',
-    3: 'SELECT * FROM v_recent_memories',
-    4: 'SELECT * FROM v_session_stats',
-    5: 'SELECT name, description, type, created_at FROM memories ORDER BY created_at DESC'
-  };
-  const sql = QUERIES[q];
-  if (!sql) { console.log('ERROR: رقم استعلام غير صالح — استخدم 1 إلى 5'); process.exit(0); }
-  const r = db.prepare(sql).all();
-  console.log(JSON.stringify(r, null, 2));
-} catch(e) { console.log('ERROR: '+e.message); }
-db.close();
-"
+node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT tool_name, COUNT(*) c, SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC').all(),null,2));db.close();"
 ```
 
-**الاستعلامات الجاهزة:**
+**٢ — الهلوسات المتكررة**
 
+```bash
+node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_frequent_hallucinations').all(),null,2));db.close();"
 ```
-/mem-query sql 1   أكثر الأدوات استخداماً
-/mem-query sql 2   الهلوسات المتكررة
-/mem-query sql 3   آخر الذكريات
-/mem-query sql 4   إحصائيات الجلسات
-/mem-query sql 5   الذكريات مرتبة بالتاريخ
+
+**٣ — آخر الذكريات**
+
+```bash
+node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_recent_memories').all(),null,2));db.close();"
 ```
+
+**٤ — إحصائيات الجلسات**
+
+```bash
+node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_session_stats').all(),null,2));db.close();"
+```
+
+**٥ — الذكريات مرتبة بالتاريخ**
+
+```bash
+node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT name, description, type, created_at FROM memories ORDER BY created_at DESC').all(),null,2));db.close();"
+```
+
+**الاستخدام:** `/mem-query sql 1` … `/mem-query sql 5`. للاستعلامات خارج هذه القائمة، اكتب استعلامك يدوياً في جلسة node منفصلة بعد مراجعته — لا يمر عبر هذا الأمر.

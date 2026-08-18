@@ -40,8 +40,18 @@ const existing = fs.existsSync(targetPath)
 function merge(obj, base) {
   const out = { ...base };
   for (const [k, v] of Object.entries(obj)) {
-    // لا نوسّع صلاحيات مستخدم قائم أبداً — قائمته تبقى كما هي
+    // الصلاحيات تُعامل باتجاهين مختلفين:
+    //   allow — لا يتوسّع أبداً (توسيعه يرفع صلاحيات المستخدم دون علمه)
+    //   deny  — يُدمج دائماً (يزيد التقييد فقط، فآمن بلا استثناء)
     if (k === "permissions" && base.permissions) {
+      const denySet = new Set(base.permissions.deny || []);
+      (v.deny || []).forEach((d) => denySet.add(d));
+      out.permissions = {
+        ...base.permissions,
+        allow: base.permissions.allow || v.allow || [],
+        deny: [...denySet],
+        defaultMode: base.permissions.defaultMode || v.defaultMode,
+      };
       continue;
     }
     if (v && typeof v === "object" && !Array.isArray(v)) {
