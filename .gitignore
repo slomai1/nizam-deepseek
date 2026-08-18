@@ -1,0 +1,30 @@
+# أسرار وبيانات اعتماد — لا تدخل git أبداً
+.credentials.json
+.auth.sec
+.mcp.json
+settings.local.json
+history.jsonl
+
+# بيانات شخصية
+data/
+projects/
+plugins/
+security/
+archive/
+backups/
+sessions/
+shell-snapshots/
+stats-cache.json
+daemon.log
+mcp-needs-auth-cache.json
+test-write.tmp
+
+# مستودعات git متداخلة
+**/.git/
+
+# حالات تشغيل
+hooks/.error_count
+
+# أنظمة تشغيل
+.DS_Store
+Thumbs.db

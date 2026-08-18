@@ -1,0 +1,202 @@
+{
+  "cleanupPeriodDays": 7,
+  "skillListingBudgetFraction": 0.02,
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash[1m]",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash[1m]",
+    "API_TIMEOUT_MS": "300000",
+    "CLAUDE_CODE_EFFORT_LEVEL": "high"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "PowerShell(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Skill(*)",
+      "Agent(*)",
+      "Task(*)",
+      "NotebookEdit(*)",
+      "LSP(*)",
+      "mcp__plugin_context7_context7__*",
+      "mcp__plugin_supabase_supabase__*",
+      "mcp__plugin_last30days_last30days__*",
+      "mcp__plugin_github_github__*",
+      "mcp__(*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(git push --force)",
+      "Bash(format C:*)",
+      "Bash(shutdown*)",
+      "Bash(:(){ :|:& };:)",
+      "Bash(DROP TABLE *)"
+    ],
+    "defaultMode": "default"
+  },
+  "model": "sonnet",
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": [],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_CONFIG_DIR/hooks/block_dangerous.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_CONFIG_DIR/hooks/block_secrets.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Read|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_CONFIG_DIR/hooks/verify_paths.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_CONFIG_DIR/hooks/loop_prevention.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_CONFIG_DIR/hooks/auto_format.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "supabase@claude-plugins-official": true,
+    "commit-commands@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "last30days@last30days-skill": true,
+    "superpowers@claude-plugins-official": true,
+    "example-skills@anthropic-agent-skills": true,
+    "agent-skills@addy-agent-skills": true,
+    "vercel@claude-plugins-official": true,
+    "serena@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "php-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "vgv-ai-flutter-plugin@very-good-claude-code-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "ui-ux-pro-max-skill": {
+      "source": {
+        "source": "github",
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill"
+      }
+    },
+    "netresearch-claude-code-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "netresearch/claude-code-marketplace"
+      }
+    },
+    "marketingskills": {
+      "source": {
+        "source": "github",
+        "repo": "coreyhaines31/marketingskills"
+      }
+    },
+    "last30days-skill": {
+      "source": {
+        "source": "github",
+        "repo": "mvanhorn/last30days-skill"
+      }
+    },
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "addy-agent-skills": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/addyosmani/agent-skills.git"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    },
+    "memclaw": {
+      "source": {
+        "source": "github",
+        "repo": "Felo-Inc/memclaw"
+      }
+    },
+    "voltagent-subagents": {
+      "source": {
+        "source": "github",
+        "repo": "VoltAgent/awesome-claude-code-subagents"
+      }
+    },
+    "very-good-claude-code-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "VeryGoodOpenSource/very-good-claude-code-marketplace"
+      }
+    },
+    "wordpress-agent-skills": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/Automattic/wordpress-agent-skills.git"
+      }
+    },
+    "callstack-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "callstackincubator/agent-skills"
+      }
+    },
+    "swmansion": {
+      "source": {
+        "source": "github",
+        "repo": "software-mansion-labs/skills"
+      }
+    }
+  },
+  "language": "arabic",
+  "autoCompactWindow": 786432,
+  "autoUpdatesChannel": "latest",
+  "autoDreamEnabled": true,
+  "skipDangerousModePermissionPrompt": false,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "skipAutoPermissionPrompt": true
+}
