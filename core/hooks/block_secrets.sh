@@ -42,13 +42,21 @@ SECRETS=(
   'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 )
 
-for pattern in "${SECRETS[@]}"; do
-  if echo "$COMMAND" | grep -qE "$pattern"; then
-    echo "🔒 مفتاح سري مكشوف في الأمر — ممنوع!" >&2
-    echo "   النمط: $pattern" >&2
-    echo "   الأمر يحتوي على مفتاح API أو سر. استخدم متغير بيئة بدل النص الصريح." >&2
-    exit 2
-  fi
-done
+# تمريرة grep واحدة بكل الأنماط — تجنّباً لتكلفة استدعاء grep لكل نمط
+JOINED=$(printf '%s|' "${SECRETS[@]}")
+JOINED="${JOINED%|}"
+
+if printf '%s' "$COMMAND" | grep -qE "$JOINED"; then
+  for pattern in "${SECRETS[@]}"; do
+    if printf '%s' "$COMMAND" | grep -qE "$pattern"; then
+      echo "🔒 مفتاح سري مكشوف في الأمر — ممنوع!" >&2
+      echo "   النمط: $pattern" >&2
+      echo "   استخدم متغير بيئة بدل النص الصريح." >&2
+      exit 2
+    fi
+  done
+  echo "🔒 مفتاح سري مكشوف في الأمر — ممنوع!" >&2
+  exit 2
+fi
 
 exit 0

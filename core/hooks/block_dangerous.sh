@@ -93,12 +93,22 @@ DANGEROUS=(
   '>[[:space:]]*~/\.(bashrc|zshrc|profile)'
 )
 
-for pattern in "${DANGEROUS[@]}"; do
-  if printf '%s' "$SCAN" | grep -qE "$pattern"; then
-    echo "❌ أمر خطير ممنوع" >&2
-    echo "   النمط المطابق: $pattern" >&2
-    exit 2
-  fi
-done
+# تمريرة grep واحدة بكل الأنماط مجتمعة — استدعاء grep لكل نمط كان يكلّف
+# ~104ms على Windows، أي >3 ثوانٍ لـ 31 نمطاً في كل أمر
+JOINED=$(printf '%s|' "${DANGEROUS[@]}")
+JOINED="${JOINED%|}"
+
+if printf '%s' "$SCAN" | grep -qE "$JOINED"; then
+  # نحدد النمط المطابق فقط عند الرفض (مسار نادر — تكلفته مقبولة)
+  for pattern in "${DANGEROUS[@]}"; do
+    if printf '%s' "$SCAN" | grep -qE "$pattern"; then
+      echo "❌ أمر خطير ممنوع" >&2
+      echo "   النمط المطابق: $pattern" >&2
+      exit 2
+    fi
+  done
+  echo "❌ أمر خطير ممنوع" >&2
+  exit 2
+fi
 
 exit 0
