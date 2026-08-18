@@ -21,28 +21,30 @@ jobs:
       - name: التحقق من دعم node:sqlite
         run: node -e "require('node:sqlite'); console.log('node:sqlite متاح — ' + process.version)"
 
+      # اسم الملف يُمرَّر كوسيط (process.argv) ولا يُدرج داخل الكود إطلاقاً،
+      # وإلا أمكن لاسم ملف خبيث حقن JavaScript. و-print0 يحمي الأسماء ذات المسافات.
       - name: صحة بنية ملفات JavaScript
         run: |
           fail=0
-          for f in $(find . -name '*.js' -not -path './.git/*'); do
+          while IFS= read -r -d '' f; do
             if node --check "$f" 2>/dev/null; then
               echo "✓ $f"
             else
-              echo "✗ $f"; node --check "$f"; fail=1
+              echo "✗ $f"; node --check "$f" || true; fail=1
             fi
-          done
+          done < <(find . -name '*.js' -not -path './.git/*' -print0)
           exit $fail
 
       - name: صحة ملفات JSON
         run: |
           fail=0
-          for f in $(find . -name '*.json' -not -path './.git/*'); do
-            if node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" 2>/dev/null; then
+          while IFS= read -r -d '' f; do
+            if node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" 2>/dev/null; then
               echo "✓ $f"
             else
               echo "✗ $f"; fail=1
             fi
-          done
+          done < <(find . -name '*.json' -not -path './.git/*' -print0)
           exit $fail
 
       - name: صحة مخطط قاعدة الذاكرة

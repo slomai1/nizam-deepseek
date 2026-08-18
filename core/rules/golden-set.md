@@ -13,7 +13,7 @@
 | `deepseek-v4-pro[1m]`   | تصعيد يدوي اختياري          | `/model opus`   |
 
 > **توجيه النموذج:** الجلسة الرئيسية `deepseek-v4-flash[1m]` (الافتراضي) — التنفيذ المباشر. التصعيد اليدوي إلى `deepseek-v4-pro[1m]` عبر `/model opus` متى شئت. فتحة `haiku` = flash.
-> **الوكلاء:** كلهم Flash (sonnet) منذ 2026-08-17. `CLAUDE_CODE_EFFORT_LEVEL=high`.
+> **الوكلاء:** كلهم Flash (sonnet). `CLAUDE_CODE_EFFORT_LEVEL=high`.
 
 ## الأدوات الأساسية
 
