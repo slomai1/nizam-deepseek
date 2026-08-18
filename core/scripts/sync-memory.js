@@ -1,24 +1,33 @@
-// مزامنة الذاكرة — ثنائية الاتجاه: hallucinations/tool_usage (SQLite → Markdown، المصدر SQLite)، memories (Markdown → SQLite، المصدر Markdown)
+// مزامنة الذاكرة بطبقتين
+//   • عامة  → ~/.claude/memory/               تُخزَّن بـ project = NULL
+//   • مشروع → ~/.claude/projects/<id>/memory/  تُخزَّن بمعرّف المشروع
+//
+// الاتجاهات: hallucinations/tool_usage (SQLite → Markdown، المصدر SQLite)
+//            memories (Markdown → SQLite، المصدر Markdown)
 const fs = require("fs"),
   p = require("path"),
-  h = require("os").homedir();
+  os = require("os"),
+  h = os.homedir();
+
 const dbPath = p.join(h, ".claude", "data", "deepseek.db");
-// معرّف مشروع الذاكرة يُشتق من مسار المنزل على نمط Claude Code (C:\Users\name → C--Users-name)
-// بدل تثبيت اسم مستخدم — يجعل السكربت محمولاً لأي جهاز
-const projectId = h.replace(/[\\/:]/g, "-");
-const memDir = p.join(h, ".claude", "projects", projectId, "memory");
+const globalDir = p.join(h, ".claude", "memory");
+
+// معرّف المشروع من مسار العمل الحالي (نمط Claude Code) — لا من مجلد المنزل
+const projectId = p.resolve(process.cwd()).replace(/[\\/:]/g, "-");
+const projectDir = p.join(h, ".claude", "projects", projectId, "memory");
+
 const { DatabaseSync } = require("node:sqlite");
 const db = new DatabaseSync(dbPath);
 
 console.log("🔄 مزامنة SQLite → Markdown...\n");
 
-// 1. Sync hallucinations → deepseek-hallucinations.md
-// يعيد بناء الملف كليًا من SQLite (لا تكرار، لا تراكم عبر التشغيلات)
+// ── 1. Hallucinations → ملف في الطبقة العامة (أنماط الفشل تعبر المشاريع) ──
 try {
   const hal = db
     .prepare("SELECT * FROM hallucinations ORDER BY created_at DESC")
     .all();
-  const halFile = p.join(memDir, "deepseek-hallucinations.md");
+  fs.mkdirSync(globalDir, { recursive: true });
+  const halFile = p.join(globalDir, "deepseek-hallucinations.md");
 
   const byType = {};
   hal.forEach((hh) => {
@@ -44,7 +53,8 @@ try {
 
   const mkEntry = (hh, n) => {
     let lines = `### حادثة #${n}\n- **التاريخ**: ${(hh.created_at || "").split("T")[0] || "غير معروف"}\n- **${fieldFor(hh.pattern_type)}**: ${hh.hallucinated_value || ""}`;
-    if (hh.correct_value) lines += `\n- **المسار الصحيح**: ${hh.correct_value}`;
+    if (hh.correct_value)
+      lines += `\n- **القيمة الصحيحة**: ${hh.correct_value}`;
     if (hh.context) lines += `\n- **السياق**: ${hh.context}`;
     if (hh.lesson) lines += `\n- **الدرس**: ${hh.lesson}`;
     return lines;
@@ -54,27 +64,24 @@ try {
 
   let content = `---
 name: deepseek-hallucinations
-description: سجل الهلوسات (hallucinations) — أنماط الافتراءات المتكررة لتجنبها مستقبلاً
+description: سجل الهلوسات — أنماط الافتراءات المتكررة لتجنبها مستقبلاً
 metadata:
   node_type: memory
   type: feedback
   severity: critical
-  domain: ai-quality
+  layer: global
 ---
 
-# 🚨 سجل هلوسات DeepSeek
+# 🚨 سجل الهلوسات
 
-## لماذا هذا الملف؟
-
-لتوثيق الحالات التي يختلق فيها DeepSeek معلومات غير صحيحة (مسارات وهمية، دوال غير موجودة، مكتبات مختلقة). الرجوع لهذا الملف قبل كل إجابة يقلل تكرار الأخطاء.
+> طبقة عامة: هذا السجل يعبر كل المشاريع لأن أنماط الفشل لا تخص مشروعاً بعينه.
 `;
 
   for (const t of types) {
-    const title = sectionFor(t);
     const entries = hal.filter((hh) => hh.pattern_type === t);
-    content += `\n## نمط الهلوسة: ${title}\n\n`;
+    content += `\n## نمط الهلوسة: ${sectionFor(t)}\n\n`;
     if (entries.length === 0) {
-      content += `### حادثة #1\n- **التاريخ**: (يُملأ عند الحدوث)\n- **${fieldFor(t)}**: (placeholder)\n- **السياق**: (ماذا كان السؤال؟)\n- **الدرس**: (كيف نتجنب هذا مستقبلاً؟)\n\n`;
+      content += `_(لا حوادث مسجلة بعد)_\n\n`;
     } else {
       entries.forEach((hh, i) => {
         content += mkEntry(hh, i + 1) + "\n\n";
@@ -82,111 +89,99 @@ metadata:
     }
   }
 
-  content += `## إحصائيات\n\n- **إجمالي الحوادث**: ${hal.length}\n- **آخر تحديث**: ${new Date().toISOString().split("T")[0]}\n- **أكثر نمط متكرر**: ${Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] || "يُحدد لاحقاً"}\n\n## روابط\n\n- [[deepseek-quality-tracker]]\n- [[deepseek-commands]]\n\n---\n\n> **قاعدة ذهبية**: إذا لم تكن متأكداً من وجود ملف/دالة/مكتبة، استخدم أدوات البحث (Grep/Glob) قبل الافتراض.\n`;
+  content += `## إحصائيات\n\n- **إجمالي الحوادث**: ${hal.length}\n- **آخر تحديث**: ${new Date().toISOString().split("T")[0]}\n- **أكثر نمط تكراراً**: ${Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] || "لا يوجد"}\n\n---\n\n> **قاعدة ذهبية**: إذا لم تكن متأكداً من وجود ملف/دالة/مكتبة، تحقق بـ Grep/Glob قبل الافتراض.\n`;
 
   fs.writeFileSync(halFile, content, "utf8");
-  console.log("✅ deepseek-hallucinations.md: " + hal.length + " حدث");
+  console.log("✅ deepseek-hallucinations.md (عامة): " + hal.length + " حادثة");
 } catch (e) {
   console.log("⚠️ Hallucinations sync: " + e.message);
 }
 
-// 2. Sync tool_usage patterns → deepseek-quality-tracker.md
-try {
-  const tools = db
-    .prepare(
-      "SELECT tool_name,COUNT(*)c,SUM(CASE WHEN success=1 THEN 1 ELSE 0 END)ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC",
-    )
-    .all();
-  const qFile = p.join(memDir, "deepseek-quality-tracker.md");
-  let qc = fs.readFileSync(qFile, "utf8");
-
-  if (tools.length > 0) {
-    const topTools = tools
-      .slice(0, 5)
-      .map(
-        (t) =>
-          `- ${t.tool_name}: ${t.c} استخدام (نجاح ${Math.round((t.ok / t.c) * 100)}%)`,
-      )
-      .join("\n");
-    const worstTool =
-      tools
-        .filter((t) => t.ok / t.c < 0.5)
-        .map((t) => t.tool_name)
-        .join(", ") || "لا يوجد";
-
-    // نمط جشع يبتلع كل الأسطر المتتالية التي تبدأ بـ "- " — النمط غير الجشع القديم
-    // كان يطابق سطراً واحداً فقط ويستبدله بخمسة فيتبقّى القديم ويتضخم الملف كل تشغيل
-    qc = qc.replace(
-      /(أنماط الضعف[^\n]*\n)(?:-[^\n]*\n)*/,
-      "أنماط الضعف ⚠️\n- معدل فشل مرتفع: " + worstTool + "\n",
-    );
-    qc = qc.replace(
-      /(أخطاء متكررة[^\n]*\n)(?:-[^\n]*\n)*/,
-      "أخطاء متكررة 🐛\n" + topTools + "\n",
-    );
-
-    fs.writeFileSync(qFile, qc, "utf8");
-    console.log("✅ deepseek-quality-tracker.md: " + tools.length + " أدوات");
+// ── 2. Markdown → SQLite لكل طبقة ──
+function syncLayer(dir, projectValue, label) {
+  if (!fs.existsSync(dir)) {
+    console.log("⏭️  " + label + ": المجلد غير موجود — تخطٍّ");
+    return new Set();
   }
-} catch (e) {
-  console.log("⚠️ Quality tracker sync: " + e.message);
+  const files = fs
+    .readdirSync(dir, { recursive: true })
+    .filter((f) => String(f).endsWith(".md"));
+  const names = new Set();
+  const allowedTypes = [
+    "user",
+    "feedback",
+    "project",
+    "reference",
+    "pattern",
+    "tool",
+    "session",
+  ];
+
+  for (const f of files) {
+    const name = String(f).replace(/\\/g, "/").replace(".md", "");
+    const full = p.join(dir, String(f));
+    if (!fs.statSync(full).isFile() || name === "MEMORY") continue;
+
+    const content = fs.readFileSync(full, "utf8");
+    const descMatch = content.match(/description:\s*(.+)/);
+    const typeMatch = content.match(/^\s*type:\s*(.+)/m);
+    const desc = descMatch ? descMatch[1] : "";
+    const type =
+      typeMatch && allowedTypes.includes(typeMatch[1].trim())
+        ? typeMatch[1].trim()
+        : "reference";
+
+    db.prepare(
+      "INSERT OR IGNORE INTO memories(name,description,type,content,project) VALUES(?,?,?,?,?)",
+    ).run(name, desc, type, content, projectValue);
+    db.prepare(
+      "UPDATE memories SET updated_at=datetime('now'),content=?,description=?,type=? WHERE name=? AND project IS ?",
+    ).run(content, desc, type, name, projectValue);
+    names.add(name);
+  }
+  console.log("✅ " + label + ": " + names.size + " ملف");
+  return names;
 }
 
-// 3. Ensure all memory .md files are in SQLite memories table
 try {
-  const files = fs
-    .readdirSync(memDir, { recursive: true })
-    .filter((f) => f.endsWith(".md"));
-  for (const f of files) {
-    const name = f.replace(/\\/g, "/").replace(".md", "");
-    const full = p.join(memDir, f);
-    if (fs.statSync(full).isFile() && name !== "MEMORY") {
-      const content = fs.readFileSync(full, "utf8");
-      const descMatch = content.match(/description:\s*(.+)/);
-      const typeMatch = content.match(/^\s*type:\s*(.+)/m);
-      const desc = descMatch ? descMatch[1] : "";
-      const allowedTypes = [
-        "user",
-        "feedback",
-        "project",
-        "reference",
-        "pattern",
-        "tool",
-        "session",
-      ];
-      const type =
-        typeMatch && allowedTypes.includes(typeMatch[1].trim())
-          ? typeMatch[1].trim()
-          : "reference";
+  const globalNames = syncLayer(globalDir, null, "الطبقة العامة");
+  const projNames = syncLayer(
+    projectDir,
+    projectId,
+    "طبقة المشروع (" + projectId + ")",
+  );
 
-      db.prepare(
-        "INSERT OR IGNORE INTO memories(name,description,type,content) VALUES(?,?,?,?)",
-      ).run(name, desc, type, content);
-      db.prepare(
-        "UPDATE memories SET updated_at=datetime('now'),content=? WHERE name=?",
-      ).run(content, name);
-    }
-  }
-  // حذف سجلات الملفات التي لم تعد موجودة (المؤرشفة/المحذوفة) — يمنع تراكم السجلات الميتة
-  const validNames = new Set();
-  for (const f of files) {
-    const n = f.replace(/\\/g, "/").replace(".md", "");
-    const full = p.join(memDir, f);
-    if (fs.statSync(full).isFile() && n !== "MEMORY") validNames.add(n);
-  }
-  const allNames = db.prepare("SELECT name FROM memories").all();
+  // حذف السجلات التي غابت ملفاتها — لكل طبقة على حدة
   let removed = 0;
-  for (const r of allNames) {
-    if (!validNames.has(r.name)) {
-      db.prepare("DELETE FROM memories WHERE name=?").run(r.name);
-      removed++;
+  const cleanup = (projectValue, keep) => {
+    const rows =
+      projectValue === null
+        ? db.prepare("SELECT name FROM memories WHERE project IS NULL").all()
+        : db
+            .prepare("SELECT name FROM memories WHERE project = ?")
+            .all(projectValue);
+    for (const r of rows) {
+      if (!keep.has(r.name)) {
+        if (projectValue === null)
+          db.prepare(
+            "DELETE FROM memories WHERE name=? AND project IS NULL",
+          ).run(r.name);
+        else
+          db.prepare("DELETE FROM memories WHERE name=? AND project=?").run(
+            r.name,
+            projectValue,
+          );
+        removed++;
+      }
     }
-  }
+  };
+  cleanup(null, globalNames);
+  if (fs.existsSync(projectDir)) cleanup(projectId, projNames);
   if (removed > 0)
     console.log("🧹 حُذفت " + removed + " سجلات قديمة (ملفاتها غابت)");
 
-  const cnt = db.prepare("SELECT COUNT(*)as c FROM memories").get();
-  console.log("✅ ذكريات SQLite: " + cnt.c + " ملف");
+  const total = db.prepare("SELECT COUNT(*) as c FROM memories").get();
+  console.log("📊 إجمالي الذكريات في القاعدة: " + total.c);
 } catch (e) {
   console.log("⚠️ Memories sync: " + e.message);
 }

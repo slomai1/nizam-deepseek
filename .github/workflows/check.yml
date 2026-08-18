@@ -66,6 +66,9 @@ jobs:
       - name: اختبار دمج الإعدادات
         run: bash tools/test-merge.sh
 
+      - name: اختبار الذاكرة بطبقتين
+        run: bash tools/test-memory-layers.sh
+
       - name: بوابة ما قبل النشر (أسرار وبيانات شخصية)
         run: bash tools/pre-publish-check.sh
 
