@@ -56,7 +56,9 @@ jobs:
           const t=db.prepare(\"SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\").get().c;
           const v=db.prepare(\"SELECT COUNT(*) c FROM sqlite_master WHERE type='view'\").get().c;
           if (t!==6||v!==6) { console.error('المخطط غير مكتمل: '+t+' جداول, '+v+' views'); process.exit(1); }
-          console.log('المخطط سليم: '+t+' جداول + '+v+' views');
+          const scope=db.prepare(\"SELECT COUNT(*) c FROM sqlite_master WHERE type='index' AND name LIKE 'idx_memories_scope%'\").get().c;
+          if (scope!==2) { console.error('فهرسا عزل النطاق مفقودان'); process.exit(1); }
+          console.log('المخطط سليم: '+t+' جداول + '+v+' views + عزل نطاق');
           db.close();
           "
 

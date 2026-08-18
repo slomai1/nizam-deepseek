@@ -144,7 +144,13 @@ ok "settings.json جاهز (defaultShell: $DEFAULT_SHELL)"
 # ------------------------------------------------------------
 step "٥. تهيئة الذاكرة"
 if [ -f "$CLAUDE_DIR/data/deepseek.db" ]; then
-  warn "قاعدة ذاكرة موجودة — لا نلمسها"
+  warn "قاعدة ذاكرة موجودة — لا نعيد إنشاءها"
+  # ترحيل التفرّد المركّب إن كانت القاعدة على المخطط القديم (يتخطى نفسه إن تم)
+  if [ "$DRY_RUN" = "1" ]; then
+    dry node "$REPO_DIR/install/migrate-memory-scope.js" --db "$CLAUDE_DIR/data/deepseek.db" --dry-run
+  else
+    node "$REPO_DIR/install/migrate-memory-scope.js" --db "$CLAUDE_DIR/data/deepseek.db" || warn "تعذّر الترحيل — القاعدة سليمة كما هي"
+  fi
 else
   if [ "$DRY_RUN" = "1" ]; then
     dry node "$REPO_DIR/install/init-memory.js" --claude-dir "$CLAUDE_DIR"

@@ -53,10 +53,12 @@ CREATE TABLE IF NOT EXISTS hallucinations (
     FOREIGN KEY (session_id) REFERENCES sessions(session_id)
 );
 
--- الذكريات (المصدر: ملفات Markdown في مجلد ذاكرة المشروع)
+-- الذكريات (المصدر: ملفات Markdown في مجلدات الذاكرة)
+-- التفرّد مركّب (name, project) لا name وحده: لكل مشروع مساحة أسماء
+-- مستقلة، وإلا استولت مزامنة مشروع على سجل مشروع آخر يحمل نفس الاسم.
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     description TEXT,
     type TEXT CHECK(type IN ('user', 'feedback', 'project', 'reference', 'pattern', 'tool', 'session')),
     content TEXT NOT NULL,
@@ -72,6 +74,13 @@ CREATE TABLE IF NOT EXISTS memories (
     source TEXT DEFAULT NULL,
     status TEXT DEFAULT 'active' CHECK(status IN ('active','outdated','replaced'))
 );
+
+-- الطبقة العامة تحمل project = NULL، وSQLite يعتبر كل NULL مميّزاً في UNIQUE،
+-- لذا نضيف فهرسين جزئيين: أحدهما للسجلات ذات المشروع والآخر للعامة.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_scope
+    ON memories(name, project) WHERE project IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_scope_global
+    ON memories(name) WHERE project IS NULL;
 
 -- استخدام الأدوات
 CREATE TABLE IF NOT EXISTS tool_usage (

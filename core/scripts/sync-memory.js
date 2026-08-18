@@ -131,15 +131,26 @@ function syncLayer(dir, projectValue, label) {
         ? typeMatch[1].trim()
         : "reference";
 
-    db.prepare(
-      "INSERT OR IGNORE INTO memories(name,description,type,content,project) VALUES(?,?,?,?,?)",
-    ).run(name, desc, type, content, projectValue);
-    // `name` فريد في المخطط، فالمطابقة عليه وحده. ضبط `project` هنا ضروري:
-    // اشتراط تطابقه في WHERE يترك السجلات القديمة بقيم project موروثة بلا تحديث،
-    // فتظهر ذاكرة في طبقة وهي مسجَّلة في أخرى.
-    db.prepare(
-      "UPDATE memories SET updated_at=datetime('now'),content=?,description=?,type=?,project=? WHERE name=?",
-    ).run(content, desc, type, projectValue, name);
+    // التحديث مقيَّد بنطاق الطبقة. بدون هذا القيد تستولي مزامنة مشروع على
+    // سجل مشروع آخر يحمل نفس الاسم فتستبدل محتواه — تلاعب عابر للمشاريع.
+    const scoped =
+      projectValue === null
+        ? db
+            .prepare("SELECT id FROM memories WHERE name=? AND project IS NULL")
+            .get(name)
+        : db
+            .prepare("SELECT id FROM memories WHERE name=? AND project=?")
+            .get(name, projectValue);
+
+    if (scoped) {
+      db.prepare(
+        "UPDATE memories SET updated_at=datetime('now'),content=?,description=?,type=? WHERE id=?",
+      ).run(content, desc, type, scoped.id);
+    } else {
+      db.prepare(
+        "INSERT INTO memories(name,description,type,content,project) VALUES(?,?,?,?,?)",
+      ).run(name, desc, type, content, projectValue);
+    }
     names.add(name);
   }
   console.log("✅ " + label + ": " + names.size + " ملف");

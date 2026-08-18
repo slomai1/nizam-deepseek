@@ -101,6 +101,38 @@ db.close();" "$DB"
 [ "$(q "SELECT COUNT(*) c FROM memories WHERE name='pref-global' AND project IS NULL")" = "1" ] \
   && ok "المزامنة صحّحت القيمة الموروثة إلى NULL" || bad "التصحيح" "السجل بقي بقيمة قديمة"
 
+echo ""
+echo "=== عزل النطاق: اسم متكرر في مشروعين لا يتصادم ==="
+# الثغرة: UPDATE بلا قيد نطاق كان يجعل مزامنة مشروع تستولي على سجل
+# مشروع آخر يحمل نفس الاسم وتستبدل محتواه
+cat > "$HOME_SANDBOX/.claude/projects/$ID_A/memory/notes.md" <<'EOF'
+---
+name: notes
+description: ملاحظات المشروع أ
+metadata:
+  type: project
+---
+محتوى-أ-المميّز
+EOF
+cat > "$HOME_SANDBOX/.claude/projects/$ID_B/memory/notes.md" <<'EOF'
+---
+name: notes
+description: ملاحظات المشروع ب
+metadata:
+  type: project
+---
+محتوى-ب-المميّز
+EOF
+( cd "$PROJ_A" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" >/dev/null 2>&1 )
+( cd "$PROJ_B" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" >/dev/null 2>&1 )
+
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='notes'")" = "2" ] \
+  && ok "سجلان منفصلان لنفس الاسم" || bad "العزل" "لم يُنشأ سجلان"
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='notes' AND content LIKE '%محتوى-أ-المميّز%'")" = "1" ] \
+  && ok "محتوى المشروع أ سليم بعد مزامنة ب" || bad "تلاعب" "محتوى أ استُبدل"
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='notes' AND content LIKE '%محتوى-ب-المميّز%'")" = "1" ] \
+  && ok "محتوى المشروع ب مخزَّن بشكل مستقل" || bad "محتوى ب"
+
 rm -rf "$SANDBOX"
 echo ""
 echo "========================================"
