@@ -1,8 +1,8 @@
 name: فحص
 
 on:
+  # كل الفروع لا main وحده — وإلا تعذّر التحقق قبل الدمج
   push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -73,6 +73,9 @@ jobs:
 
       - name: اختبار بوابات الـ workflows
         run: bash tools/test-workflow-guards.sh
+
+      - name: اختبار سلامة التركيب (دهس · force · minimal)
+        run: bash tools/test-install.sh
 
       - name: بوابة ما قبل النشر (أسرار وبيانات شخصية)
         run: bash tools/pre-publish-check.sh

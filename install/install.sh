@@ -14,12 +14,29 @@ set -euo pipefail
 DRY_RUN=0
 DO_BACKUP=1
 SKIP_CLAUDE_CHECK=0
+FORCE=0
+MINIMAL=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --no-backup) DO_BACKUP=0 ;;
+    # يستبدل الملفات الموجودة — بدونه تبقى ملفاتك المعدّلة كما هي
+    --force) FORCE=1 ;;
+    # نواة فقط: بلا enabledPlugins ولا extraKnownMarketplaces
+    --minimal) MINIMAL=1 ;;
     # للاختبار الآلي (CI) حيث لا يكون Claude Code مثبّتاً
     --skip-claude-check) SKIP_CLAUDE_CHECK=1 ;;
+    -h|--help)
+      cat <<'USAGE'
+الاستخدام: install.sh [خيارات]
+
+  --dry-run             اعرض ما سيحدث دون تنفيذ
+  --force               استبدل الملفات الموجودة (بدونه تبقى كما هي)
+  --minimal             نواة فقط — بلا ملحقات ولا أسواق
+  --no-backup           بلا نسخة احتياطية (حذار)
+  --skip-claude-check   تخطَّ فحص وجود Claude Code (للاختبار الآلي)
+USAGE
+      exit 0 ;;
   esac
 done
 
@@ -103,21 +120,45 @@ fi
 # ------------------------------------------------------------
 step "٣. نسخ مكوّنات النظام"
 mkdir -p "$CLAUDE_DIR"
+
+COPIED=0; SKIPPED=0; OVERWRITTEN=0
+
+# ينسخ ملفاً واحداً وفق سياسة الدهس:
+#   بلا --force: الملف الموجود يبقى كما هو (قد يكون المستخدم عدّله)
+#   مع  --force: يُستبدل
+copy_one() {
+  local src="$1" dst="$2"
+  if [ -e "$dst" ]; then
+    if [ "$FORCE" = "1" ]; then
+      if [ "$DRY_RUN" = "1" ]; then printf '  (سيُستبدل) %s\n' "${dst#$CLAUDE_DIR/}"
+      else cp "$src" "$dst"; fi
+      OVERWRITTEN=$((OVERWRITTEN + 1))
+    else
+      SKIPPED=$((SKIPPED + 1))
+    fi
+  else
+    if [ "$DRY_RUN" = "1" ]; then printf '  (سيُضاف) %s\n' "${dst#$CLAUDE_DIR/}"
+    else mkdir -p "$(dirname "$dst")"; cp "$src" "$dst"; fi
+    COPIED=$((COPIED + 1))
+  fi
+}
+
 for sub in rules hooks commands workflows skills scripts; do
   [ -d "$CORE_DIR/$sub" ] || continue
-  if [ "$DRY_RUN" = "1" ]; then
-    dry cp -r "$CORE_DIR/$sub/." "$CLAUDE_DIR/$sub/"
-  else
-    mkdir -p "$CLAUDE_DIR/$sub"
-    cp -r "$CORE_DIR/$sub/." "$CLAUDE_DIR/$sub/"
-  fi
+  [ "$DRY_RUN" = "1" ] || mkdir -p "$CLAUDE_DIR/$sub"
+  while IFS= read -r -d '' f; do
+    rel="${f#$CORE_DIR/$sub/}"
+    copy_one "$f" "$CLAUDE_DIR/$sub/$rel"
+  done < <(find "$CORE_DIR/$sub" -type f -print0)
 done
-if [ "$DRY_RUN" = "1" ]; then
-  dry cp "$CORE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
-else
-  cp "$CORE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+copy_one "$CORE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+
+ok "أُضيف: $COPIED ملف"
+if [ "$OVERWRITTEN" -gt 0 ]; then warn "استُبدل: $OVERWRITTEN ملف (--force)"; fi
+if [ "$SKIPPED" -gt 0 ]; then
+  warn "بقي دون مساس: $SKIPPED ملف موجود مسبقاً"
+  echo "  ملفاتك المعدّلة لم تُلمس. لاستبدالها بنسخة المستودع: أعد التشغيل مع --force" >&2
 fi
-ok "نُسخ core/ → ~/.claude (دمج)"
 
 # على يونكس: اجعل الـ hooks قابلة للتنفيذ (نتجاوز Git Bash على Windows)
 case "$(uname -s)" in
@@ -136,8 +177,10 @@ fi
 
 MERGE_ARGS=(--template "$TPL_DIR/settings.template.json" --target "$CLAUDE_DIR/settings.json" --shell "$DEFAULT_SHELL")
 if [ "$DRY_RUN" = "1" ]; then MERGE_ARGS+=(--dry-run); fi
+if [ "$MINIMAL" = "1" ]; then MERGE_ARGS+=(--minimal); fi
 node "$REPO_DIR/install/merge-settings.js" "${MERGE_ARGS[@]}"
 ok "settings.json جاهز (defaultShell: $DEFAULT_SHELL)"
+if [ "$MINIMAL" = "1" ]; then warn "وضع --minimal: لم تُفعَّل أي ملحقات أو أسواق"; fi
 
 # ------------------------------------------------------------
 # ٥. تهيئة الذاكرة

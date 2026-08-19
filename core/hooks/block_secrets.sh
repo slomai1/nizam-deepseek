@@ -13,16 +13,23 @@ process.stdin.on("data", (d) => (s += d));
 process.stdin.on("end", () => {
   try {
     const j = JSON.parse(s);
-    const c = (j.tool_input && j.tool_input.command) || j.command || "";
+    const ti = j.tool_input || {};
+    const c = ti.command || j.command || "";
     process.stdout.write(String(c));
   } catch (e) {
-    process.stdout.write("");
+    process.stdout.write("__PARSE_FAILED__");
   }
 });
-')
+' 2>/dev/null || printf '__PARSE_FAILED__')
 
-if [ -z "$COMMAND" ]; then
-  exit 0
+# fail-closed: تعذّر التحليل (أو غياب node) → نفحص المدخل الخام كاملاً
+# بدل تمرير أمر قد يحمل مفتاحاً بلا فحص
+if [ "$COMMAND" = "__PARSE_FAILED__" ] || [ -z "${COMMAND}" ]; then
+  if [ "$COMMAND" = "__PARSE_FAILED__" ]; then
+    COMMAND="$INPUT"
+  else
+    exit 0   # تحليل ناجح بلا أمر — لا شيء لفحصه
+  fi
 fi
 
 # ─── أنماط المفاتيح والأسرار ───

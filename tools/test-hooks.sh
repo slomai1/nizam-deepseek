@@ -69,6 +69,17 @@ else
 fi
 
 echo ""
+echo "=== block_secrets: fail-closed عند تلف المدخل ==="
+# مفتاح مبني من أجزاء حتى لا يعترضه خطاف الجلسة الحالية
+KEY="sk-$(printf 'a%.0s' $(seq 24))"
+out=$(printf 'ليس JSON صالحاً %s' "$KEY" | bash "$HOOKS_DIR/block_secrets.sh" 2>&1); code=$?
+if [ "$code" = "2" ]; then
+  PASS=$((PASS+1)); printf '  ✓ %-34s exit=2 (فحص النص الخام)\n' "JSON تالف يحوي مفتاحاً"
+else
+  FAIL=$((FAIL+1)); printf '  ✗ %-34s exit=%s (متوقع 2 — fail-open!)\n' "JSON تالف يحوي مفتاحاً" "$code"
+fi
+
+echo ""
 echo "=== block_secrets ==="
 t block_secrets.sh "أمر نظيف"            "git status" 0
 t block_secrets.sh "مفتاح sk-"           "export K=sk-abcdef1234567890abcdef" 2
