@@ -71,6 +71,9 @@ jobs:
       - name: اختبار الذاكرة بطبقتين
         run: bash tools/test-memory-layers.sh
 
+      - name: اختبار بوابات الـ workflows
+        run: bash tools/test-workflow-guards.sh
+
       - name: بوابة ما قبل النشر (أسرار وبيانات شخصية)
         run: bash tools/pre-publish-check.sh
 
