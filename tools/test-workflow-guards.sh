@@ -64,6 +64,30 @@ process.exit(gate>=0 && firstAgent>gate ? 0 : 1);
   && ok "البوابة تسبق أول فعل خارجي" || bad "ترتيب البوابة" "الوكيل يُستدعى قبل التأكيد"
 
 echo ""
+echo "=== mem-query: لا SQL حر ولا حقن ==="
+node --check "$REPO/core/scripts/mem-query.js" 2>/dev/null && ok "بنية سليمة" || bad "بنية mem-query"
+node "$REPO/core/scripts/mem-query.js" 2>&1 | grep -q "لوحة الذاكرة" \
+  && ok "اللوحة تعمل بلا وسيط" || bad "اللوحة"
+node "$REPO/core/scripts/mem-query.js" 3 2>&1 | grep -q "آخر الذكريات" \
+  && ok "استعلام بالرقم يعمل" || bad "استعلام بالرقم"
+# الحاسم: إدخال خبيث لا ينفّذ كوداً ولا يمرّر SQL
+out=$(node "$REPO/core/scripts/mem-query.js" "9'); console.log('INJECTED'); ('" 2>&1)
+echo "$out" | grep -q "INJECTED" && bad "حقن JS" "الكود المحقون نُفّذ" || ok "إدخال خبيث لا ينفّذ كوداً"
+# الرفض يُطبع على stderr ويخرج برمز 1 — نتحقق من الاثنين
+if node "$REPO/core/scripts/mem-query.js" "abc" >/dev/null 2>&1; then
+  bad "الرفض" "إدخال غير رقمي مرّ برمز نجاح"
+else
+  ok "إدخال غير رقمي يُرفض (رمز خروج 1)"
+fi
+grep -q "readOnly: true" "$REPO/core/scripts/mem-query.js" \
+  && ok "القاعدة تُفتح للقراءة فقط" || bad "readOnly" "غائب"
+
+echo ""
+echo "=== connect-all مستبعد من التوزيع ==="
+[ ! -f "$REPO/core/scripts/connect-all.js" ] \
+  && ok "غير موجود في core/scripts" || bad "connect-all" "ما زال موزّعاً"
+
+echo ""
 echo "=== سلامة بنية الـ workflows ==="
 for f in "$REPO"/core/workflows/*.js; do
   node --check "$f" 2>/dev/null || bad "$(basename "$f")" "خطأ بنيوي"

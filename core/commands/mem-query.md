@@ -1,111 +1,53 @@
 ---
-description: استعلام الذاكرة — بحث نصي أو إحصائيات أو SQL مباشر
-argument-hint: "[stats | <كلمة بحث> | sql <استعلام>]"
+description: استعلام الذاكرة — إحصائيات أو بحث نصي أو استعلام جاهز
+argument-hint: "[stats | <كلمة بحث> | sql <رقم 1-5>]"
 ---
 
-أنت الآن في وضع **استعلام الذاكرة**. ابحث أو استعلم بالطريقة المناسبة.
+أنت الآن في وضع **استعلام الذاكرة**.
 
-المتغير: `$ARGUMENTS`
+> **قاعدة أمنية:** لا تُدرج `$ARGUMENTS` داخل أي كود تُنفّذه — لا SQL ولا JavaScript. كل الاستعلامات تمر عبر سكربت ثابت يقرأ رقماً فقط ويفتح القاعدة للقراءة فقط.
 
-## آلية الاستعلام 🔍
+## الحالات
 
-### إذا كان `stats` أو فارغ — لوحة الإحصائيات
-
-شغّل عبر node:
+### `stats` أو فارغ — لوحة الإحصائيات
 
 ```bash
-node -e "
-const {DatabaseSync}=require('node:sqlite');
-const h=require('os').homedir();
-const db=new DatabaseSync(h+'/.claude/data/deepseek.db');
-
-try {
-  // إحصائيات عامة
-  const mem=db.prepare('SELECT COUNT(*)as c FROM memories').get();
-  const ses=db.prepare('SELECT COUNT(*)as c FROM sessions').get();
-  const hal=db.prepare('SELECT COUNT(*)as c FROM hallucinations').get();
-  const dec=db.prepare('SELECT COUNT(*)as c FROM decisions').get();
-  const fc=db.prepare('SELECT COUNT(*)as c FROM file_changes').get();
-  const tu=db.prepare('SELECT COUNT(*)as c FROM tool_usage').get();
-
-  // آخر جلسة
-  const last=db.prepare(\"SELECT MAX(started_at) as d FROM sessions\").get();
-
-  // أكثر 5 أدوات استخداماً
-  const tools=db.prepare('SELECT tool_name,COUNT(*)c,SUM(CASE WHEN success=1 THEN 1 ELSE 0 END)ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC LIMIT 5').all();
-
-  // المشاريع
-  const proj=db.prepare('SELECT * FROM v_session_stats').all();
-
-  console.log('GENERAL|'+mem.c+'|'+ses.c+'|'+hal.c+'|'+dec.c+'|'+fc.c+'|'+tu.c+'|'+(last?.d||'never'));
-  console.log('TOOLS|'+JSON.stringify(tools));
-  console.log('PROJECTS|'+JSON.stringify(proj));
-} catch(e) { console.log('ERROR|'+e.message); }
-db.close();
-"
+node ~/.claude/scripts/mem-query.js
 ```
 
-اعرض النتائج بهذا التنسيق:
+اعرض الناتج كما هو، ثم علّق بسطر أو سطرين على ما يستحق الانتباه (هلوسات مسجّلة، ذاكرة منتفخة، مشروع بلا ذكريات).
 
-```
-📊 لوحة الإحصائيات
-   ├─ 🗄️ SQLite: X ذاكرة | X جلسة | X قرار | X تغيير ملف | X استخدام أداة
-   ├─ 🚨 هلوسات مسجلة: X (منذ البدء)
-   ├─ 📅 آخر جلسة: YYYY-MM-DD (منذ X يوم)
-   ├─ 🔧 أكثر الأدوات:
-   │   ├─ tool1: X (نجاح Y%)
-   │   ├─ tool2: X (نجاح Y%)
-   │   └─ tool3: X (نجاح Y%)
-   └─ 📁 المشاريع:
-       ├─ project1: X جلسات, X ملفات
-       └─ project2: X جلسات, X ملفات
-```
+### `sql <رقم>` — استعلام جاهز
 
-### إذا كان كلمة بحث — بحث في Markdown
-
-1. استخدم Glob: `*.md` في `~/.claude/projects/<معرّف-مشروعك>/memory/`
-2. ثم Grep عن `$ARGUMENTS` في الملفات
-3. اعرض النتائج:
-
-```
-🔍 نتائج البحث عن "$ARGUMENTS"
-   ├─ file1.md — [الوصف] — صلة: [لماذا]
-   ├─ file2.md — [الوصف] — صلة: [لماذا]
-   └─ file3.md — [الوصف] — صلة: [لماذا]
-```
-
-### إذا كان `sql <رقم>` — استعلام جاهز آمن (قراءة فقط)
-
-> **قاعدة أمنية إلزامية:** لا تُدرج `$ARGUMENTS` داخل أي كود تُنفّذه — لا في SQL ولا في JavaScript. اقرأ الرقم الذي طلبه المستخدم، ثم **انسخ الكتلة المقابلة حرفياً** ونفّذها كما هي. أي إدخال غير رقم من ١ إلى ٥ يُرفض بلا تنفيذ.
-
-**١ — أكثر الأدوات استخداماً**
+مرّر الرقم كوسيط. **لا تكتب SQL** — الاستعلامات ثابتة في السكربت:
 
 ```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT tool_name, COUNT(*) c, SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) ok FROM tool_usage GROUP BY tool_name ORDER BY c DESC').all(),null,2));db.close();"
+node ~/.claude/scripts/mem-query.js 3
 ```
 
-**٢ — الهلوسات المتكررة**
+| الرقم | الاستعلام |
+|---|---|
+| ١ | أكثر الأدوات استخداماً |
+| ٢ | الهلوسات المتكررة |
+| ٣ | آخر الذكريات |
+| ٤ | إحصائيات الجلسات |
+| ٥ | الذكريات مرتبة بالتاريخ |
 
-```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_frequent_hallucinations').all(),null,2));db.close();"
+لاستعلام خارج القائمة: اكتبه يدوياً في جلسة node منفصلة بعد مراجعته، أو أضفه إلى `QUERIES` في السكربت.
+
+### كلمة بحث — بحث في الملفات
+
+ابحث في الطبقتين معاً:
+
+1. الطبقة العامة: `~/.claude/memory/*.md`
+2. طبقة المشروع: `~/.claude/projects/<معرّف-المسار-الحالي>/memory/**/*.md`
+
+استخدم Glob ثم Grep عن كلمة البحث، واعرض:
+
+```
+🔍 نتائج البحث
+   [عامة]  file1.md — الوصف — لماذا هي ذات صلة
+   [مشروع] file2.md — الوصف — لماذا هي ذات صلة
 ```
 
-**٣ — آخر الذكريات**
-
-```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_recent_memories').all(),null,2));db.close();"
-```
-
-**٤ — إحصائيات الجلسات**
-
-```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT * FROM v_session_stats').all(),null,2));db.close();"
-```
-
-**٥ — الذكريات مرتبة بالتاريخ**
-
-```bash
-node -e "const{DatabaseSync}=require('node:sqlite');const h=require('os').homedir();const db=new DatabaseSync(h+'/.claude/data/deepseek.db',{readOnly:true});console.log(JSON.stringify(db.prepare('SELECT name, description, type, created_at FROM memories ORDER BY created_at DESC').all(),null,2));db.close();"
-```
-
-**الاستخدام:** `/mem-query sql 1` … `/mem-query sql 5`. للاستعلامات خارج هذه القائمة، اكتب استعلامك يدوياً في جلسة node منفصلة بعد مراجعته — لا يمر عبر هذا الأمر.
+بيّن طبقة كل نتيجة، فذلك يوضّح ما إذا كانت المعرفة تخص هذا المشروع أم تعبر المشاريع.
