@@ -1,8 +1,8 @@
 name: فحص
 
 on:
+  # كل الفروع لا main وحده — وإلا تعذّر التحقق قبل الدمج
   push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
