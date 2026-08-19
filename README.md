@@ -46,6 +46,19 @@ export ANTHROPIC_AUTH_TOKEN="sk-..."
 
 ثم شغّل `claude`. عند أول تشغيل تُجلب الملحقات (١٨ ملحقاً من ١٤ سوقاً) تلقائياً، وستجد النظام جاهزاً.
 
+### خيارات التركيب
+
+| العلم | الأثر |
+|---|---|
+| _(بلا علم)_ | **لا يستبدل ملفاتك الموجودة** — يضيف الناقص فقط ويخبرك بما تخطّاه |
+| `--force` | يستبدل الملفات الموجودة بنسخة المستودع |
+| `--minimal` | النواة فقط: خطافات وقواعد وأوامر وذاكرة — **بلا أي ملحق أو سوق** |
+| `--dry-run` | يعرض ما سيحدث دون تنفيذ |
+
+على PowerShell: `-Force` · `-Minimal` · `-DryRun`.
+
+> التركيب المتكرر آمن: عدّل خطافاً أو `CLAUDE.md` كما تشاء، وإعادة التركيب لن تدهس تعديلك ما لم تطلب `--force` صراحةً.
+
 > **جرّب فوراً:** `/model opus` ثم `/model sonnet` — إن عملا، البوابة سليمة و`ANTHROPIC_MODEL` غير مثبّت.
 
 ## ماذا تحصل عليه؟
@@ -96,13 +109,15 @@ export ANTHROPIC_AUTH_TOKEN="sk-..."
 
 ### الاختبارات
 
-٥٦ حالة تعمل عند كل دفع عبر CI:
+١٠١ حالة تعمل عند كل دفع عبر CI:
 
 ```bash
-bash tools/test-hooks.sh          # ٢٨ حالة — منع/سماح + fail-closed
-bash tools/test-merge.sh          # ١٠ حالات — الدمج لا يوسّع الصلاحيات
-bash tools/test-memory-layers.sh  # ١٨ حالة — عزل الذاكرة بين المشاريع
-bash tools/pre-publish-check.sh   # بوابة الأسرار
+bash tools/test-hooks.sh           # ٢٩ حالة — منع/سماح + fail-closed
+bash tools/test-merge.sh           # ١٠ حالات — الدمج لا يوسّع الصلاحيات
+bash tools/test-memory-layers.sh   # ١٨ حالة — عزل الذاكرة بين المشاريع
+bash tools/test-workflow-guards.sh # ٢٩ حالة — بوابات النشر والمسارات
+bash tools/test-install.sh         # ١٥ حالة — دهس · force · minimal
+bash tools/pre-publish-check.sh    # بوابة الأسرار
 ```
 
 ## الترخيص والنسبة

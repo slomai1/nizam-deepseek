@@ -53,7 +53,9 @@ param(
   [string]$LogFile = "auto-build-log.txt",
   [string]$ProgressFile = "progress.md",
   [int]$MaxSteps = 20,
-  [int]$TimeoutMinutes = 480,
+  # 45 دقيقة افتراضاً لا 8 ساعات: وكيل غير مراقب على جهاز المستخدم يجب أن
+  # يتوقف قبل أن يستهلك ليلة كاملة. ارفعها صراحةً عند الحاجة.
+  [int]$TimeoutMinutes = 45,
   [switch]$Monitor,
   [switch]$RunChecklist,
   [switch]$LoopReady
@@ -315,7 +317,7 @@ $buildPrompt = @"
 
 قواعد صارمة:
 - لا تسألني أي سؤال نهائيًا
-- إذا احتجت صلاحية (Bash/PowerShell)، افترض أن مسموح
+- لا تفترض أن أي صلاحية ممنوحة. إن مُنع أمر، سجّل السبب في progress.md واكتب BLOCKED بدل الالتفاف عليه
 - إذا صار خطأ، سجله في $ProgressFile وحاول تكمل
 - إذا ما عرفت تكمل، اكتب BLOCKED: [السبب] في $ProgressFile وتوقف
 - بعد كل خطوة كاملة، حدث $ProgressFile بخلاصة
@@ -395,6 +397,25 @@ if ($Monitor) {
         if ($progress -match "BLOCKED") {
           Write-Host ""
           Write-Error "⛔ البناء توقف! راجع $ProgressFile"
+          return
+        }
+      }
+    }
+
+    # حدّ الخطوات — ملزم لا إرشادي. progress.md يسجّل سطراً لكل خطوة منجزة،
+    # فنعدّها ونوقف العملية عند التجاوز بدل الاكتفاء بذكر الحد في البرومبت.
+    if (Test-Path $ProgressFile) {
+      $raw = Get-Content $ProgressFile -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+      if ($raw) {
+        $stepCount = ([regex]::Matches($raw, '(?m)^\s*(?:[-*]\s*)?(?:\[[xX ]\]|الخطوة|Step)\s')).Count
+        if ($stepCount -gt $MaxSteps) {
+          Write-Warning "🚧 تجاوز حدّ الخطوات ($stepCount > $MaxSteps) — إيقاف البناء"
+          try {
+            Stop-Process -Id $Global:ChildPid -Force -ErrorAction Stop
+            Write-Warning "  تم إيقاف العملية $($Global:ChildPid)"
+          } catch {
+            Write-Warning "  ما قدرت أوقف العملية $($Global:ChildPid) (يمكن خلصت)"
+          }
           return
         }
       }

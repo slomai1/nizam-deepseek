@@ -103,6 +103,34 @@ echo "=== connect-all مستبعد من التوزيع ==="
   && ok "غير موجود في core/scripts" || bad "connect-all" "ما زال موزّعاً"
 
 echo ""
+echo "=== sprint: النطاق يُطبَّق فعلاً ==="
+node -e '
+const fs=require("fs");
+const s=fs.readFileSync(process.argv[1],"utf8");
+// نستخرج الخريطة من الملف نفسه لا من نسخة في الاختبار
+const m=s.match(/const PHASE_MAP\s*=\s*\{[\s\S]*?\};/);
+if(!m){console.error("PHASE_MAP غير موجودة");process.exit(1)}
+const expected={small:2,medium:3,large:4,sensitive:5};
+for(const [k,n] of Object.entries(expected)){
+  const re=new RegExp(k+":\\s*\\[([^\\]]*)\\]");
+  const mm=m[0].match(re);
+  if(!mm){console.error("الحجم "+k+" مفقود");process.exit(1)}
+  const count=mm[1].split(",").filter(x=>x.trim()).length;
+  if(count!==n){console.error(k+": "+count+" مراحل، المتوقع "+n);process.exit(1)}
+}
+if(!/PHASE_MAP\[taskSize\]\s*\|\|\s*PHASE_MAP\.medium/.test(s)){console.error("لا احتياطي للحجم المجهول");process.exit(1)}
+' "$REPO/core/workflows/sprint.js" \
+  && ok "الأحجام الأربعة صحيحة + احتياطي للمجهول" || bad "sprint" "النطاق غير مطبَّق"
+
+echo ""
+echo "=== auto-verify: مصفوفة الأفعال الخمسة كاملة ==="
+missing=""
+for v in "موثوق" "قابل للتشخيص" "تعارض" "لا قيد" "انحلال"; do
+  grep -q "$v" "$REPO/core/workflows/auto-verify.js" || missing="$missing $v"
+done
+[ -z "$missing" ] && ok "الأفعال الخمسة موجودة" || bad "auto-verify" "ناقص:$missing"
+
+echo ""
 echo "=== سلامة بنية الـ workflows ==="
 for f in "$REPO"/core/workflows/*.js; do
   node --check "$f" 2>/dev/null || bad "$(basename "$f")" "خطأ بنيوي"

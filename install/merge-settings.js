@@ -32,7 +32,16 @@ if (!templatePath || !targetPath) {
   process.exit(1);
 }
 
+const minimal = !!args.minimal;
+
 const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
+
+// --minimal: النواة فقط. الملحقات والأسواق تُجلب من مستودعات طرف ثالث عند أول
+// تشغيل، فمن يريد نظاماً مغلقاً على ما راجعه يستبعدها.
+if (minimal) {
+  delete template.enabledPlugins;
+  delete template.extraKnownMarketplaces;
+}
 const existing = fs.existsSync(targetPath)
   ? JSON.parse(fs.readFileSync(targetPath, "utf8"))
   : {};

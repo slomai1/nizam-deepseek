@@ -2,13 +2,18 @@
 # نظام DeepSeek × Claude Code — سكربت التركيب (Windows PowerShell)
 #
 # الاستخدام:
-#   .\install.ps1            # تركيب كامل
+#   .\install.ps1            # تركيب — لا يستبدل ملفاتك الموجودة
 #   .\install.ps1 -DryRun    # عرض الخطوات دون تنفيذ
+#   .\install.ps1 -Force     # استبدال الملفات الموجودة
+#   .\install.ps1 -Minimal   # نواة فقط — بلا ملحقات ولا أسواق
 #   .\install.ps1 -NoBackup  # بلا نسخة احتياطية (حذار)
 # ============================================================
 param(
   [switch]$DryRun,
-  [switch]$NoBackup
+  [switch]$NoBackup,
+  [switch]$Force,
+  [switch]$Minimal,
+  [switch]$SkipClaudeCheck
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,6 +41,8 @@ Write-Step "١. فحص المتطلبات"
 
 if (Get-Command claude -ErrorAction SilentlyContinue) {
   Write-Ok "Claude Code موجود"
+} elseif ($SkipClaudeCheck) {
+  Write-Warn "تخطّي فحص Claude Code (-SkipClaudeCheck)"
 } else {
   Write-Fail "Claude Code غير موجود — ثبّته: npm i -g @anthropic-ai/claude-code"
   exit 1
@@ -76,22 +83,47 @@ if ((Test-Path $ClaudeDir) -and -not $NoBackup) {
 # ------------------------------------------------------------
 Write-Step "٣. نسخ مكوّنات النظام"
 New-Item -ItemType Directory -Force -Path $ClaudeDir | Out-Null
+
+$script:Copied = 0; $script:Skipped = 0; $script:Overwritten = 0
+
+# ينسخ ملفاً واحداً وفق سياسة الدهس:
+#   بلا -Force: الملف الموجود يبقى كما هو (قد يكون المستخدم عدّله)
+#   مع  -Force: يُستبدل
+function Copy-One($Src, $Dst) {
+  if (Test-Path $Dst) {
+    if ($Force) {
+      if (-not $DryRun) { Copy-Item -Path $Src -Destination $Dst -Force }
+      else { Write-Host "  (سيُستبدل) $Dst" }
+      $script:Overwritten++
+    } else {
+      $script:Skipped++
+    }
+  } else {
+    if (-not $DryRun) {
+      New-Item -ItemType Directory -Force -Path (Split-Path $Dst -Parent) | Out-Null
+      Copy-Item -Path $Src -Destination $Dst
+    } else { Write-Host "  (سيُضاف) $Dst" }
+    $script:Copied++
+  }
+}
+
 foreach ($sub in @('rules','hooks','commands','workflows','skills','scripts')) {
   $srcSub = Join-Path $CoreDir $sub
   if (-not (Test-Path $srcSub)) { continue }
-  if ($DryRun) {
-    Write-Warn "(سيتنفذ) نسخ $srcSub → $ClaudeDir\$sub"
-  } else {
-    New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir $sub) | Out-Null
-    Copy-Item -Path (Join-Path $srcSub '*') -Destination (Join-Path $ClaudeDir $sub) -Recurse -Force
+  if (-not $DryRun) { New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir $sub) | Out-Null }
+  Get-ChildItem $srcSub -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring($srcSub.Length).TrimStart('\', '/')
+    Copy-One $_.FullName (Join-Path (Join-Path $ClaudeDir $sub) $rel)
   }
 }
-if ($DryRun) {
-  Write-Warn "(سيتنفذ) نسخ CLAUDE.md"
-} else {
-  Copy-Item -Path (Join-Path $CoreDir 'CLAUDE.md') -Destination (Join-Path $ClaudeDir 'CLAUDE.md') -Force
+Copy-One (Join-Path $CoreDir 'CLAUDE.md') (Join-Path $ClaudeDir 'CLAUDE.md')
+
+Write-Ok "أُضيف: $script:Copied ملف"
+if ($script:Overwritten -gt 0) { Write-Warn "استُبدل: $script:Overwritten ملف (-Force)" }
+if ($script:Skipped -gt 0) {
+  Write-Warn "بقي دون مساس: $script:Skipped ملف موجود مسبقاً"
+  Write-Host "  ملفاتك المعدّلة لم تُلمس. لاستبدالها: أعد التشغيل مع -Force"
 }
-Write-Ok "نُسخ core/ → ~/.claude (دمج)"
 
 # ------------------------------------------------------------
 # ٤. إعداد settings.json
@@ -103,6 +135,7 @@ $settingsArgs = @(
   '--shell', 'powershell'
 )
 if ($DryRun) { $settingsArgs += '--dry-run' }
+if ($Minimal) { $settingsArgs += '--minimal' }
 & $NodeExe (Join-Path $RepoDir 'install\merge-settings.js') @settingsArgs
 if ($LASTEXITCODE -ne 0) { Write-Fail "فشل دمج settings.json"; exit 1 }
 Write-Ok "settings.json جاهز (defaultShell: powershell)"
