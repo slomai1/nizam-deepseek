@@ -66,21 +66,36 @@ process.exit(gate>=0 && firstAgent>gate ? 0 : 1);
 echo ""
 echo "=== mem-query: لا SQL حر ولا حقن ==="
 node --check "$REPO/core/scripts/mem-query.js" 2>/dev/null && ok "بنية سليمة" || bad "بنية mem-query"
-node "$REPO/core/scripts/mem-query.js" 2>&1 | grep -q "لوحة الذاكرة" \
+
+# اللوحة والاستعلامات تحتاج قاعدة فعلية — ننشئ واحدة مؤقتة بدل الاعتماد
+# على قاعدة المطوّر (وهو ما جعل هذين الاختبارين يمرّان محلياً ويفشلان في CI)
+MQ_HOME="$REPO/.mq-sandbox"
+rm -rf "$MQ_HOME"; mkdir -p "$MQ_HOME/.claude/data"
+MQ_DB=$(command -v cygpath >/dev/null 2>&1 && cygpath -m "$MQ_HOME/.claude/data/deepseek.db" || printf '%s' "$MQ_HOME/.claude/data/deepseek.db")
+node -e '
+const {DatabaseSync}=require("node:sqlite");
+const fs=require("fs");
+const db=new DatabaseSync(process.argv[1]);
+db.exec(fs.readFileSync(process.argv[2],"utf8"));
+db.close();
+' "$MQ_DB" "$REPO/templates/memory/schema.sql"
+
+HOME="$MQ_HOME" USERPROFILE="$MQ_HOME" node "$REPO/core/scripts/mem-query.js" 2>&1 | grep -q "لوحة الذاكرة" \
   && ok "اللوحة تعمل بلا وسيط" || bad "اللوحة"
-node "$REPO/core/scripts/mem-query.js" 3 2>&1 | grep -q "آخر الذكريات" \
+HOME="$MQ_HOME" USERPROFILE="$MQ_HOME" node "$REPO/core/scripts/mem-query.js" 3 2>&1 | grep -q "آخر الذكريات" \
   && ok "استعلام بالرقم يعمل" || bad "استعلام بالرقم"
 # الحاسم: إدخال خبيث لا ينفّذ كوداً ولا يمرّر SQL
-out=$(node "$REPO/core/scripts/mem-query.js" "9'); console.log('INJECTED'); ('" 2>&1)
+out=$(HOME="$MQ_HOME" USERPROFILE="$MQ_HOME" node "$REPO/core/scripts/mem-query.js" "9'); console.log('INJECTED'); ('" 2>&1)
 echo "$out" | grep -q "INJECTED" && bad "حقن JS" "الكود المحقون نُفّذ" || ok "إدخال خبيث لا ينفّذ كوداً"
 # الرفض يُطبع على stderr ويخرج برمز 1 — نتحقق من الاثنين
-if node "$REPO/core/scripts/mem-query.js" "abc" >/dev/null 2>&1; then
+if HOME="$MQ_HOME" USERPROFILE="$MQ_HOME" node "$REPO/core/scripts/mem-query.js" "abc" >/dev/null 2>&1; then
   bad "الرفض" "إدخال غير رقمي مرّ برمز نجاح"
 else
   ok "إدخال غير رقمي يُرفض (رمز خروج 1)"
 fi
 grep -q "readOnly: true" "$REPO/core/scripts/mem-query.js" \
   && ok "القاعدة تُفتح للقراءة فقط" || bad "readOnly" "غائب"
+rm -rf "$MQ_HOME"
 
 echo ""
 echo "=== connect-all مستبعد من التوزيع ==="
