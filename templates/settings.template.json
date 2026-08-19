@@ -45,7 +45,21 @@
       "Bash(:(){ :|:& };:)",
       "Bash(DROP TABLE *)",
       "PowerShell(Remove-Item -Recurse -Force C:\\)",
-      "PowerShell(Format-Volume *)"
+      "PowerShell(Format-Volume *)",
+      "Write(**/.claude/hooks/**)",
+      "Edit(**/.claude/hooks/**)",
+      "Write(**/.claude/settings.json)",
+      "Edit(**/.claude/settings.json)",
+      "Write(**/.claude/settings.local.json)",
+      "Edit(**/.claude/settings.local.json)",
+      "Write(**/.ssh/**)",
+      "Edit(**/.ssh/**)",
+      "Read(**/.ssh/id_*)",
+      "Write(**/.aws/credentials)",
+      "Read(**/.aws/credentials)",
+      "Write(**/.claude/.credentials.json)",
+      "Read(**/.claude/.credentials.json)",
+      "Read(**/.claude/.auth.sec)"
     ],
     "defaultMode": "default"
   },
