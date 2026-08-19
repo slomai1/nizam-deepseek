@@ -194,6 +194,40 @@ try {
   if (removed > 0)
     console.log("🧹 حُذفت " + removed + " سجلات قديمة (ملفاتها غابت)");
 
+  // صفوف يتيمة: نطاقها ليس الطبقة العامة ولا أي مشروع له مجلد ذاكرة على القرص.
+  // مصدرها مخطط قديم أو مجلد مشروع حُذف. لا تُحذف تلقائياً — الحذف الصامت
+  // لذاكرة قد تكون حيّة أسوأ من إبقائها؛ نبلّغ ونترك القرار للمستخدم.
+  const projectsRoot = p.join(h, ".claude", "projects");
+  const known = new Set();
+  if (fs.existsSync(projectsRoot)) {
+    for (const d of fs.readdirSync(projectsRoot)) {
+      if (fs.existsSync(p.join(projectsRoot, d, "memory"))) known.add(d);
+    }
+  }
+  const orphans = db
+    .prepare(
+      "SELECT project, COUNT(*) c FROM memories WHERE project IS NOT NULL GROUP BY project",
+    )
+    .all()
+    .filter((r) => !known.has(r.project));
+  if (orphans.length) {
+    console.log("");
+    console.log("⚠️  صفوف بنطاق لا مجلد ذاكرة له:");
+    orphans.forEach((o) => console.log("   " + o.project + ": " + o.c + " صف"));
+    console.log(
+      "   للحذف: node ~/.claude/scripts/sync-memory.js --prune-orphans",
+    );
+    if (process.argv.includes("--prune-orphans")) {
+      let pruned = 0;
+      for (const o of orphans) {
+        pruned += db
+          .prepare("DELETE FROM memories WHERE project=?")
+          .run(o.project).changes;
+      }
+      console.log("   🧹 حُذف " + pruned + " صفاً يتيماً");
+    }
+  }
+
   const total = db.prepare("SELECT COUNT(*) as c FROM memories").get();
   console.log("📊 إجمالي الذكريات في القاعدة: " + total.c);
 } catch (e) {

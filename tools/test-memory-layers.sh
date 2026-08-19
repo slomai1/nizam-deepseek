@@ -99,7 +99,16 @@ db.close();" "$DB"
   && ok "هُيّئ سجل بقيمة موروثة" || bad "التهيئة"
 ( cd "$PROJ_A" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" >/dev/null 2>&1 )
 [ "$(q "SELECT COUNT(*) c FROM memories WHERE name='pref-global' AND project IS NULL")" = "1" ] \
-  && ok "المزامنة صحّحت القيمة الموروثة إلى NULL" || bad "التصحيح" "السجل بقي بقيمة قديمة"
+  && ok "الصف العام موجود بعد المزامنة" || bad "الصف العام" "غائب"
+# الصف الموروث يبقى عمداً (لا حذف صامت لذاكرة قد تكون حيّة) لكن يجب
+# أن يُبلَّغ عنه صراحة — الاختبار السابق لم يكن يرى وجوده أصلاً
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE name='pref-global' AND project='legacy-value'")" = "1" ] \
+  && ok "الصف الموروث باقٍ (لا حذف صامت)" || bad "الصف الموروث" "حُذف بلا إذن"
+( cd "$PROJ_A" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" 2>&1 | grep -q "صفوف بنطاق لا مجلد ذاكرة له" ) \
+  && ok "المزامنة تُبلّغ عن الصفوف اليتيمة" || bad "الإبلاغ" "لا تحذير"
+( cd "$PROJ_A" && HOME="$HOME_SANDBOX" USERPROFILE="$HOME_SANDBOX" node "$REPO/core/scripts/sync-memory.js" --prune-orphans >/dev/null 2>&1 )
+[ "$(q "SELECT COUNT(*) c FROM memories WHERE project='legacy-value'")" = "0" ] \
+  && ok "--prune-orphans يزيل النطاقات بلا مجلد" || bad "prune-orphans" "الصف اليتيم باقٍ"
 
 echo ""
 echo "=== عزل النطاق: اسم متكرر في مشروعين لا يتصادم ==="

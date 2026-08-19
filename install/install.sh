@@ -149,7 +149,14 @@ if [ -f "$CLAUDE_DIR/data/deepseek.db" ]; then
   if [ "$DRY_RUN" = "1" ]; then
     dry node "$REPO_DIR/install/migrate-memory-scope.js" --db "$CLAUDE_DIR/data/deepseek.db" --dry-run
   else
-    node "$REPO_DIR/install/migrate-memory-scope.js" --db "$CLAUDE_DIR/data/deepseek.db" || warn "تعذّر الترحيل — القاعدة سليمة كما هي"
+    # فشل الترحيل يوقف التركيب: قاعدة على المخطط القديم مع مزامنة جديدة
+    # تعني فشلاً صامتاً عند أول اسم متكرر بين مشروعين
+    if ! node "$REPO_DIR/install/migrate-memory-scope.js" --db "$CLAUDE_DIR/data/deepseek.db"; then
+      fail "فشل ترحيل قاعدة الذاكرة — التركيب متوقف"
+      echo "  القاعدة لم تتغيّر. عالج السبب أعلاه ثم أعد التشغيل." >&2
+      echo "  نسختك الاحتياطية: ${BACKUP_DIR:-(لم تُنشأ — استخدمت --no-backup)}" >&2
+      exit 1
+    fi
   fi
 else
   if [ "$DRY_RUN" = "1" ]; then

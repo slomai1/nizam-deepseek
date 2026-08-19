@@ -113,7 +113,18 @@ Write-Ok "settings.json جاهز (defaultShell: powershell)"
 Write-Step "٥. تهيئة الذاكرة"
 $dbPath = Join-Path $ClaudeDir 'data\deepseek.db'
 if (Test-Path $dbPath) {
-  Write-Warn "قاعدة ذاكرة موجودة — لا نلمسها"
+  Write-Warn "قاعدة ذاكرة موجودة — لا نعيد إنشاءها"
+  # ترحيل التفرّد المركّب إن كانت على المخطط القديم (يتخطى نفسه إن تم)
+  if ($DryRun) {
+    & $NodeExe (Join-Path $RepoDir 'install\migrate-memory-scope.js') --db $dbPath --dry-run
+  } else {
+    & $NodeExe (Join-Path $RepoDir 'install\migrate-memory-scope.js') --db $dbPath
+    if ($LASTEXITCODE -ne 0) {
+      Write-Fail "فشل ترحيل قاعدة الذاكرة — التركيب متوقف"
+      Write-Host "  القاعدة لم تتغيّر. عالج السبب أعلاه ثم أعد التشغيل."
+      exit 1
+    }
+  }
 } else {
   if ($DryRun) {
     Write-Warn "(سيتنفذ) إنشاء قاعدة الذاكرة من schema.sql"

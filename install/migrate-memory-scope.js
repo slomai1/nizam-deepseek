@@ -131,13 +131,14 @@ try {
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_scope_global ON memories(name) WHERE project IS NULL",
   );
   for (const v of views) db.exec(v.sql);
-  db.exec("COMMIT");
 
+  // التحقق قبل COMMIT — بعده يصبح الفشل بلا تراجع ممكن
   const after = db.prepare("SELECT COUNT(*) c FROM memories").get().c;
   if (after !== before) {
-    console.error("✗ عدد السجلات تغيّر: " + before + " → " + after);
-    process.exit(1);
+    throw new Error("عدد السجلات تغيّر: " + before + " → " + after);
   }
+
+  db.exec("COMMIT");
   console.log("✓ اكتمل الترحيل — " + after + " سجلاً سليماً بتفرّد مركّب");
 } catch (e) {
   try {
