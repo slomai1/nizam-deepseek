@@ -9,9 +9,9 @@ argument-hint: [موضوع أو كلمة مفتاحية]
 
 ### الخطوة 1: البحث المباشر
 
-ابحث في `~/.claude/projects/<معرّف-مشروعك>/memory/` وكل مجلداته الفرعية عن ملفات `*.md` تحتوي على **$ARGUMENTS**.
+ابحث في `~/.claude/projects/C--/memory/` وكل مجلداته الفرعية عن ملفات `*.md` تحتوي على **$ARGUMENTS**.
 
-استخدم Glob: `**/*.md` في مسار `~/.claude/projects/<معرّف-مشروعك>/memory/`
+استخدم Glob: `**/*.md` في مسار `~/.claude/projects/C--/memory/`
 ثم Grep عن `$ARGUMENTS` في الملفات الموجودة.
 
 ### الخطوة 2: عرض النتائج
