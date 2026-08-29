@@ -1,6 +1,6 @@
 # إشعار النسبة والأعمال المشتقة
 
-> هذا المستودع يحوي **فقط** الأعمال الأصلية للمؤلف. كل مكوّن من طرف ثالث يُجلب من مصدره الأصلي عند التركيب ولا يُوزَّع هنا.
+> هذا المستودع يحوي الأعمال الأصلية للمؤلف، **إضافةً إلى ٣ مهارات من طرف ثالث بِترخيص MIT** (تُوزَّع هنا مع نماذج رخصها). أما بقية المكوّنات من طرف ثالث فتُجلب من مصادرها عند التركيب ولا تُوزَّع هنا.
 
 ## عمل المؤلف الأصلي
 
@@ -25,10 +25,21 @@
 | مهارات Flutter/Dart                                                | [VeryGoodOpenSource/very-good-claude-code-marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace) |
 | `pdf` · `xlsx` · `skill-development`                               | [anthropics/skills](https://github.com/anthropics/skills) — © 2025 Anthropic, PBC                                               |
 | مجموعة agent-skills                                                | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)                                                           |
-| مهارات `humanizer` · `code-review-skill` · `motion-dev-animations` | لها تراخيص MIT مستقلة (Siqi Chen · tt-a1i · 199 Biotechnologies)                                                                |
 | مهارة `impeccable`                                                 | منظومة Anthropic/Codex — أصلية من بيئة خارجية                                                                                   |
 | مهارة `git-cleanup`                                                | منظمة Trail of Bits (دليل: شعار ToB + agents/openai.yaml)                                                                       |
 | ١٤ سوقاً للملحقات                                                  | القائمة الكاملة في [`docs/05-الملحقات-والمصادر.md`](docs/05-الملحقات-والمصادر.md)                                               |
+
+## أعمال مُوزَّعة هنا بِترخيص MIT
+
+ثلاث مهارات من طرف ثالث رُخّصت بـ MIT، فيُسمح بإعادة توزيعها مع إبقاء حقوق النشر وملاحظة الرخصة — وهي مضمّنة في `core/skills/` بنماذج رخصها الأصلية:
+
+| المهارة                  | صاحب الحقوق          | مجلد الرخصة                          |
+| ------------------------ | --------------------- | ------------------------------------ |
+| `code-review-skill`      | tt-a1i                | `core/skills/code-review-skill/LICENSE`      |
+| `humanizer`              | Siqi Chen             | `core/skills/humanizer/LICENSE`              |
+| `motion-dev-animations`  | 199 Biotechnologies   | `core/skills/motion-dev-animations/LICENSE`  |
+
+> تُقدَّم هذه المهارات كما هي دون أي تعديل، وتبقى خاضعة لترخيص MIT الأصلي — لا يشمله ترخيص هذا المستودع (MIT للمؤلف الأصلي) إلا في نطاقها الخاص.
 
 ## أسئلة حقوق النشر
 
