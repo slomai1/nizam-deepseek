@@ -21,7 +21,6 @@
 | المكوّن                                                            | المصدر الأصلي                                                                                                                   |
 | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | وكلاء VoltAgent (بما فيها النسخ المعرّبة الأربعة)                  | [VoltAgent/awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)                           |
-| مهارات WordPress                                                   | [Automattic/wordpress-agent-skills](https://github.com/Automattic/wordpress-agent-skills)                                       |
 | مهارات Flutter/Dart                                                | [VeryGoodOpenSource/very-good-claude-code-marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace) |
 | `pdf` · `xlsx` · `skill-development`                               | [anthropics/skills](https://github.com/anthropics/skills) — © 2025 Anthropic, PBC                                               |
 | مجموعة agent-skills                                                | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)                                                           |
