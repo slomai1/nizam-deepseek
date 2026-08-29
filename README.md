@@ -27,30 +27,44 @@
 
 ### المتطلبات
 
-| المتطلب        | الحد الأدنى                                           |
-| -------------- | ----------------------------------------------------- |
-| Claude Code    | أحدث نسخة (≥ 2.1.233 — عيوب التكامل القديمة زالت هنا) |
-| Node.js        | ≥ 22.5 (لأجل `node:sqlite`)                           |
-| bash           | على Windows: Git Bash أو WSL                          |
-| مفتاح DeepSeek | من منصة DeepSeek                                      |
+| المتطلب        | الحد الأدنى                                       | كيف تثبّته (macOS/Linux) |
+| -------------- | ------------------------------------------------- | ------------------------- |
+| Claude Code    | أحدث نسخة (≥ 2.1.233 — عيوب التكامل القديمة زالت هنا) | `npm i -g @anthropic-ai/claude-code` |
+| Node.js        | ≥ 22.5 (لأجل `node:sqlite`)                        | `brew install node`       |
+| git            | أي نسخة حديثة                                     | `xcode-select --install` (مضمّنة) أو `brew install git` |
+| bash           | مطلوب لتشغيل الخطافات — على Windows: Git Bash أو WSL | مضمّن على macOS/Linux      |
+| مفتاح DeepSeek | من منصة DeepSeek                                   | يُمرَّر عبر `ANTHROPIC_AUTH_TOKEN` — لا يُخزَّن في أي ملف |
 
-### ٣ خطوات
+**سكربت جاهز** يفحص ما هو موجود ويضيف الناقص فقط (مرة واحدة):
 
 ```bash
-# ١. استنسخ المستودع
+./install/install-prereq.sh              # macOS / Linux — يثبّت ما فُقد
+./install/install-prereq.sh --check      # فحص فقط بلا تثبيت
+./install/install-prereq.sh --claude-only  # ثبّت Claude Code فقط
+```
+
+### ١. استنسخ المستودع
+
+```bash
 git clone https://github.com/slomai1/nizam-deepseek.git
 cd nizam-deepseek
+```
 
-# ٢. شغّل التركيب
+### ٢. شغّل التركيب
+
+```bash
 ./install/install.sh              # macOS/Linux/Git Bash
 # أو على Windows:
 # .\install\install.ps1
+```
 
-# ٣. عيّن مفتاح DeepSeek
+### ٣. عيّن مفتاح DeepSeek
+
+```bash
 export ANTHROPIC_AUTH_TOKEN="sk-..."
 ```
 
-ثم شغّل `claude`. عند أول تشغيل تُجلب الملحقات (١٨ ملحقاً من ١٤ سوقاً) تلقائياً، وستجد النظام جاهزاً.
+ثم شغّل `claude`. عند أول تشغيل تُجلب الملحقات (١٨ ملحقاً من ١٤ سوقاً) تلقائياً، وستجد النظام جاهزاً. نافذة السياق مضبوطة مسبقاً على **786432 توكن** (`autoCompactWindow` + `CLAUDE_CODE_AUTO_COMPACT_WINDOW`) لتطابق سعة نماذج DeepSeek — التفاصيل في [٠١](docs/01-تركيب-deepseek.md).
 
 ### خيارات التركيب
 

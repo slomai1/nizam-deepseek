@@ -7,6 +7,7 @@
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash-vision-exp",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash[1m]",
     "API_TIMEOUT_MS": "300000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "786432",
     "CLAUDE_CODE_EFFORT_LEVEL": "high"
   },
   "permissions": {
