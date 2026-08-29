@@ -31,7 +31,7 @@ Claude Code يتصل بـ Anthropic عبر نقطة نهاية متوافقة. �
 {
   "env": {
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-flash-vision-exp",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash[1m]"
   }
 }
@@ -50,7 +50,7 @@ Claude Code يتصل بـ Anthropic عبر نقطة نهاية متوافقة. �
 | فتحة `/model` | النموذج الفعلي          |
 | ------------- | ----------------------- |
 | `opus`        | `deepseek-v4-pro[1m]`   |
-| `sonnet`      | `deepseek-v4-flash[1m]` |
+| `sonnet`      | `deepseek-v4-flash-vision-exp` |
 | `haiku`       | `deepseek-v4-flash[1m]` |
 
 أسماء الفتحات توافقية مع واجهة Anthropic ولا تعكس النموذج الفعلي.
