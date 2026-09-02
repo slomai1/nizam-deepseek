@@ -77,6 +77,12 @@ jobs:
       - name: اختبار سلامة التركيب (دهس · force · minimal)
         run: bash tools/test-install.sh
 
+      - name: اختبارات سلوكية لـ sprint وauto-verify
+        run: bash tools/test-sprint-autoverify.sh
+
+      - name: اختبار مناظر يونكس للسكربتات (auto-build · deepseek-logs · فحص النماذج)
+        run: bash tools/test-platform-scripts.sh
+
       - name: بوابة ما قبل النشر (أسرار وبيانات شخصية)
         run: bash tools/pre-publish-check.sh
 
