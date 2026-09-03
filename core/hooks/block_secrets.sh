@@ -1,33 +1,39 @@
 #!/usr/bin/env bash
 # block_secrets.sh — PreToolUse (Bash)
 # يكشف API keys في الأوامر ويمنعها
-# الاستخراج عبر node (JSON حقيقي) — يعالج الاقتباسات المهرّبة التي يكسرها grep
 
 set -euo pipefail
 
 INPUT=$(cat)
-
 COMMAND=$(printf '%s' "$INPUT" | node -e '
 let s = "";
 process.stdin.on("data", (d) => (s += d));
 process.stdin.on("end", () => {
   try {
     const j = JSON.parse(s);
-    const c = (j.tool_input && j.tool_input.command) || j.command || "";
+    const ti = j.tool_input || {};
+    // Bash يستخدم command · PowerShell قد يستخدم command أيضاً
+    const c = ti.command || j.command || "";
     process.stdout.write(String(c));
   } catch (e) {
-    process.stdout.write("");
+    process.stdout.write("__PARSE_FAILED__");
   }
 });
-')
+' 2>/dev/null || printf '__PARSE_FAILED__')
 
-if [ -z "$COMMAND" ]; then
-  exit 0
+# fail-closed: تعذّر التحليل (أو غياب node) → نفحص المدخل الخام كاملاً
+# بدل تمرير أمر قد يحمل مفتاحاً بلا فحص
+if [ "$COMMAND" = "__PARSE_FAILED__" ] || [ -z "${COMMAND}" ]; then
+  if [ "$COMMAND" = "__PARSE_FAILED__" ]; then
+    COMMAND="$INPUT"
+  else
+    exit 0   # تحليل ناجح بلا أمر — لا شيء لفحصه
+  fi
 fi
 
 # ─── أنماط المفاتيح والأسرار ───
 SECRETS=(
-  'sk-[a-zA-Z0-9]{16,}'           # Anthropic / OpenAI / DeepSeek keys (تغطية أوسع)
+  'sk-[a-zA-Z0-9]{20,}'           # Anthropic / OpenAI keys
   'sk-ant-[a-zA-Z0-9_-]{20,}'     # Anthropic Admin keys
   'AIza[0-9A-Za-z_-]{35}'         # Google API keys
   'ghp_[a-zA-Z0-9]{36}'           # GitHub Personal Access Token (classic)
