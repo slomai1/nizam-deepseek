@@ -72,7 +72,7 @@ jobs:
       - name: اختبار بوابات الـ workflows
         run: bash tools/test-workflow-guards.sh
 
-  check-behavior:
+  check-sprint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +81,14 @@ jobs:
           node-version: '22.x'
       - name: اختبارات سلوكية لـ sprint وauto-verify
         run: bash tools/test-sprint-autoverify.sh
+
+  check-platform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
       - name: اختبار مناظر يونكس للسكربتات
         run: bash tools/test-platform-scripts.sh
 
