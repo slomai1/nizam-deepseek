@@ -12,7 +12,9 @@ const fs = require("fs"),
 const dbPath = p.join(h, ".claude", "data", "deepseek.db");
 const globalDir = p.join(h, ".claude", "memory");
 
-// معرّف المشروع من مسار العمل الحالي (نمط Claude Code) — لا من مجلد المنزل
+// معرّف المشروع من مسار العمل الحالي (نمط Claude Code) — لا من مجلد المنزل.
+// نأخذ الحالة كما هي: على Linux يعتبر مسارٌ بفرق حالةٍ وحده كبوابةٍ مختلفة،
+// فتوحيدها إلى حروف صغيرة سيجمع مشروعين منفصلين في ذاكرة واحدة.
 const projectId = p.resolve(process.cwd()).replace(/[\\/:]/g, "-");
 const projectDir = p.join(h, ".claude", "projects", projectId, "memory");
 
